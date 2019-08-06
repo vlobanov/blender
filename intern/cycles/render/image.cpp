@@ -810,7 +810,7 @@ void ImageManager::file_load_extern_vdb(Device *device,
 template<TypeDesc::BASETYPE FileFormat,
          typename StorageType,
          typename DeviceType>
-bool ImageManager::file_load_image(Device *device,
+void ImageManager::file_load_image(Device *device,
                                    Image *img,
                                    ImageDataType type,
                                    int texture_limit)
@@ -826,7 +826,8 @@ bool ImageManager::file_load_image(Device *device,
 
 	unique_ptr<ImageInput> in = NULL;
 	if(!file_load_image_generic(img, &in)) {
-		return false;
+    file_load_failed<DeviceType>(img, type, tex_img);
+		return;
 	}
 
   /* Get metadata. */
@@ -838,7 +839,8 @@ bool ImageManager::file_load_image(Device *device,
 	size_t num_pixels = ((size_t)width) * height * depth;
 	size_t max_size = max(max(width, height), depth);
 	if(max_size == 0) {
-		return false;
+    file_load_failed<DeviceType>(img, type, tex_img);
+		return;
 	}
 
 	/* Allocate storage for the image. */
@@ -891,7 +893,7 @@ bool ImageManager::file_load_image(Device *device,
 		}
 		cmyk = strcmp(in->format_name(), "jpeg") == 0 && components == 4;
 		in->close();
-		delete in;
+//		delete in;
 	}
 	else {
 		if(FileFormat == TypeDesc::FLOAT) {
@@ -914,7 +916,6 @@ bool ImageManager::file_load_image(Device *device,
 			/* TODO(dingto): Support half for ImBuf. */
 		}
 	}
-
 	/* Check if we actually have a float4 slot, in case components == 1,
 	 * but device doesn't support single channel textures.
 	 */

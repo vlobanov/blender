@@ -205,8 +205,8 @@ class ImageManager {
 	template<TypeDesc::BASETYPE FileFormat,
 	         typename StorageType,
 	         typename DeviceType>
-	void file_load_image(Device *device,
-	                     Image *img,
+  void file_load_image(Device *device,
+                       Image *img,
                        ImageDataType type,
                        int texture_limit);
 
