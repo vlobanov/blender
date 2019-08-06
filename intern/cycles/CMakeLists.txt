@@ -177,15 +177,15 @@ if(CXX_HAS_AVX2)
   add_definitions(-DWITH_KERNEL_AVX2)
 endif()
 
-if(WITH_CYCLES_OSL)
-  # LLVM and OSL need to build without RTTI
-  if(WIN32 AND MSVC)
-    set(RTTI_DISABLE_FLAGS "/GR- -DBOOST_NO_RTTI -DBOOST_NO_TYPEID")
-  elseif(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
-    set(RTTI_DISABLE_FLAGS "-fno-rtti -DBOOST_NO_RTTI -DBOOST_NO_TYPEID")
-  endif()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")
-endif()
+#if(WITH_CYCLES_OSL)
+#  # LLVM and OSL need to build without RTTI
+#  if(WIN32 AND MSVC)
+#    set(RTTI_DISABLE_FLAGS "/GR- -DBOOST_NO_RTTI -DBOOST_NO_TYPEID")
+#  elseif(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
+#    set(RTTI_DISABLE_FLAGS "-fno-rtti -DBOOST_NO_RTTI -DBOOST_NO_TYPEID")
+#  endif()
+#  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")
+#endif()
 
 # Definitions and Includes
 
@@ -216,6 +216,8 @@ if(WITH_CYCLES_OSL)
   include_directories(
     SYSTEM
     ${OSL_INCLUDE_DIR}
+    ${TBB_INCLUDE_DIR}
+    ${OPENVDB_INCLUDE_DIRS}
   )
 endif()
 
@@ -271,9 +273,10 @@ if(WITH_OPENVDB)
 			-DWITH_OPENVDB_BLOSC
 		)
 	endif()
-
+    set(TBB_INCLUDE_DIRS ${LIBDIR}/tbb/include)
 	include_directories(
 		SYSTEM
+        ${TBB_INCLUDE_DIRS}
 		${OPENVDB_INCLUDE_DIRS}
 	)
 endif()
