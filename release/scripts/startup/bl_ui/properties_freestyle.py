@@ -39,6 +39,7 @@ class RenderFreestyleButtonsPanel:
 class RENDER_PT_freestyle(RenderFreestyleButtonsPanel, Panel):
     bl_label = "Freestyle"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_order = 10
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
 
     def draw_header(self, context):
@@ -47,14 +48,14 @@ class RENDER_PT_freestyle(RenderFreestyleButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
 
         rd = context.scene.render
 
         layout.active = rd.use_freestyle
 
-        row = layout.row()
-        row.label(text="Line Thickness:")
-        row.prop(rd, "line_thickness_mode", expand=True)
+        layout.prop(rd, "line_thickness_mode", expand=True)
 
         if (rd.line_thickness_mode == 'ABSOLUTE'):
             layout.prop(rd, "line_thickness")
@@ -66,6 +67,7 @@ class ViewLayerFreestyleButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "view_layer"
+    bl_order = 10
     # COMPAT_ENGINES must be defined in each subclass, external engines can add themselves here
 
     @classmethod
@@ -90,20 +92,20 @@ class ViewLayerFreestyleEditorButtonsPanel(ViewLayerFreestyleButtonsPanel):
 
 
 class VIEWLAYER_UL_linesets(UIList):
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+    def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, index):
         lineset = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             layout.prop(lineset, "name", text="", emboss=False, icon_value=icon)
             layout.prop(lineset, "show_render", text="", index=index)
         elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
-            layout.label("", icon_value=icon)
+            layout.label(text="", icon_value=icon)
 
 
-class RENDER_MT_lineset_specials(Menu):
+class RENDER_MT_lineset_context_menu(Menu):
     bl_label = "Lineset Specials"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
         layout.operator("scene.freestyle_lineset_copy", icon='COPYDOWN')
         layout.operator("scene.freestyle_lineset_paste", icon='PASTEDOWN')
@@ -116,7 +118,6 @@ class VIEWLAYER_PT_freestyle(ViewLayerFreestyleButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
-        scene = context.scene
         view_layer = context.view_layer
         freestyle = view_layer.freestyle_settings
 
@@ -151,15 +152,15 @@ class VIEWLAYER_PT_freestyle(ViewLayerFreestyleButtonsPanel, Panel):
 
         if freestyle.mode == 'SCRIPT':
             row = layout.row()
-            row.label("Style modules:")
+            row.label(text="Style modules:")
             row.operator("scene.freestyle_module_add", text="Add")
-            for i, module in enumerate(freestyle.modules):
+            for module in freestyle.modules:
                 box = layout.box()
                 box.context_pointer_set("freestyle_module", module)
                 row = box.row(align=True)
                 row.prop(module, "use", text="")
                 row.prop(module, "script", text="")
-                row.operator("scene.freestyle_module_open", icon='FILESEL', text="")
+                row.operator("scene.freestyle_module_open", icon='FILEBROWSER', text="")
                 row.operator("scene.freestyle_module_remove", icon='X', text="")
                 row.operator("scene.freestyle_module_move", icon='TRIA_UP', text="").direction = 'UP'
                 row.operator("scene.freestyle_module_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
@@ -183,9 +184,6 @@ class VIEWLAYER_PT_freestyle_lineset(ViewLayerFreestyleEditorButtonsPanel, Panel
     def draw(self, context):
         layout = self.layout
 
-        scene = context.scene
-        rd = scene.render
-
         view_layer = context.view_layer
         freestyle = view_layer.freestyle_settings
         lineset = freestyle.linesets.active
@@ -194,12 +192,20 @@ class VIEWLAYER_PT_freestyle_lineset(ViewLayerFreestyleEditorButtonsPanel, Panel
 
         row = layout.row()
         rows = 4 if lineset else 2
-        row.template_list("VIEWLAYER_UL_linesets", "", freestyle, "linesets", freestyle.linesets, "active_index", rows=rows)
+        row.template_list(
+            "VIEWLAYER_UL_linesets",
+            "",
+            freestyle,
+            "linesets",
+            freestyle.linesets,
+            "active_index",
+            rows=rows,
+        )
 
         sub = row.column(align=True)
-        sub.operator("scene.freestyle_lineset_add", icon='ZOOMIN', text="")
-        sub.operator("scene.freestyle_lineset_remove", icon='ZOOMOUT', text="")
-        sub.menu("RENDER_MT_lineset_specials", icon='DOWNARROW_HLT', text="")
+        sub.operator("scene.freestyle_lineset_add", icon='ADD', text="")
+        sub.operator("scene.freestyle_lineset_remove", icon='REMOVE', text="")
+        sub.menu("RENDER_MT_lineset_context_menu", icon='DOWNARROW_HLT', text="")
         if lineset:
             sub.separator()
             sub.separator()
@@ -212,7 +218,7 @@ class VIEWLAYER_PT_freestyle_lineset(ViewLayerFreestyleEditorButtonsPanel, Panel
             row.prop(lineset, "select_by_visibility", text="Visibility", toggle=True)
             row.prop(lineset, "select_by_edge_types", text="Edge Types", toggle=True)
             row.prop(lineset, "select_by_face_marks", text="Face Marks", toggle=True)
-            row.prop(lineset, "select_by_group", text="Group", toggle=True)
+            row.prop(lineset, "select_by_collection", text="Collection", toggle=True)
             row.prop(lineset, "select_by_image_border", text="Image Border", toggle=True)
 
             if lineset.select_by_visibility:
@@ -251,11 +257,11 @@ class VIEWLAYER_PT_freestyle_lineset(ViewLayerFreestyleEditorButtonsPanel, Panel
                 row.prop(lineset, "face_mark_negation", expand=True)
                 row.prop(lineset, "face_mark_condition", expand=True)
 
-            if lineset.select_by_group:
-                col.label(text="Group:")
+            if lineset.select_by_collection:
+                col.label(text="Collection:")
                 row = col.row()
-                row.prop(lineset, "group", text="")
-                row.prop(lineset, "group_negation", expand=True)
+                row.prop(lineset, "collection", text="")
+                row.prop(lineset, "collection_negation", expand=True)
 
 
 class VIEWLAYER_PT_freestyle_linestyle(ViewLayerFreestyleEditorButtonsPanel, Panel):
@@ -285,7 +291,7 @@ class VIEWLAYER_PT_freestyle_linestyle(ViewLayerFreestyleEditorButtonsPanel, Pan
         sub.operator("scene.freestyle_modifier_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
         sub.operator("scene.freestyle_modifier_remove", icon='X', text="")
 
-    def draw_modifier_box_error(self, box, modifier, message):
+    def draw_modifier_box_error(self, box, _modifier, message):
         row = box.row()
         row.label(text=message, icon='ERROR')
 
@@ -510,7 +516,7 @@ class VIEWLAYER_PT_freestyle_linestyle(ViewLayerFreestyleEditorButtonsPanel, Pan
                     message = "Enable Face Smoothness to use this modifier"
                     self.draw_modifier_box_error(col.box(), modifier, message)
 
-    def draw_geometry_modifier(self, context, modifier):
+    def draw_geometry_modifier(self, _context, modifier):
         layout = self.layout
 
         col = layout.column(align=True)
@@ -613,7 +619,6 @@ class VIEWLAYER_PT_freestyle_linestyle(ViewLayerFreestyleEditorButtonsPanel, Pan
     def draw(self, context):
         layout = self.layout
 
-        scene = context.scene
         view_layer = context.view_layer
         lineset = view_layer.freestyle_settings.linesets.active
 
@@ -809,8 +814,10 @@ class MaterialFreestyleButtonsPanel:
         scene = context.scene
         material = context.material
         with_freestyle = bpy.app.build_options.freestyle
-        return with_freestyle and material and scene and scene.render.use_freestyle and \
+        return (
+            with_freestyle and material and scene and scene.render.use_freestyle and
             (context.engine in cls.COMPAT_ENGINES)
+        )
 
 
 class MATERIAL_PT_freestyle_line(MaterialFreestyleButtonsPanel, Panel):
@@ -831,7 +838,7 @@ class MATERIAL_PT_freestyle_line(MaterialFreestyleButtonsPanel, Panel):
 classes = (
     RENDER_PT_freestyle,
     VIEWLAYER_UL_linesets,
-    RENDER_MT_lineset_specials,
+    RENDER_MT_lineset_context_menu,
     VIEWLAYER_PT_freestyle,
     VIEWLAYER_PT_freestyle_lineset,
     VIEWLAYER_PT_freestyle_linestyle,

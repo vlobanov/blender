@@ -21,8 +21,6 @@
 
 # <pep8 compliant>
 
-# Contributor(s): Keith "Wahooney" Boshoff, Campbell Barton, Sybren A. Stüvel
-
 
 def get_vcolor_layer_data(me):
     for lay in me.vertex_colors:
@@ -127,7 +125,6 @@ def applyVertexDirt(me, blur_iterations, blur_strength, clamp_dirt, clamp_clean,
     return {'FINISHED'}
 
 
-import bpy
 from bpy.types import Operator
 from bpy.props import FloatProperty, IntProperty, BoolProperty
 from math import pi
@@ -155,14 +152,14 @@ class VertexPaintDirt(Operator):
         description="Less than 90 limits the angle used in the tonal range",
         min=0.0, max=pi,
         default=pi,
-        unit="ROTATION",
+        unit='ROTATION',
     )
     dirt_angle: FloatProperty(
         name="Dirt Angle",
         description="Less than 90 limits the angle used in the tonal range",
         min=0.0, max=pi,
         default=0.0,
-        unit="ROTATION",
+        unit='ROTATION',
     )
     dirt_only: BoolProperty(
         name="Dirt Only",

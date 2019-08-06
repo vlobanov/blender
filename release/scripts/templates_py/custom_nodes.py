@@ -7,7 +7,7 @@ from bpy.types import NodeTree, Node, NodeSocket
 # Derived from the NodeTree base type, similar to Menu, Operator, Panel, etc.
 class MyCustomTree(NodeTree):
     # Description string
-    '''A custom node tree type that will show up in the node editor header'''
+    '''A custom node tree type that will show up in the editor type list'''
     # Optional identifier string. If not explicitly defined, the python class name is used.
     bl_idname = 'CustomTreeType'
     # Label for nice name display
@@ -43,7 +43,7 @@ class MyCustomSocket(NodeSocket):
     # Optional function for drawing the socket input value
     def draw(self, context, layout, node, text):
         if self.is_output or self.is_linked:
-            layout.label(text)
+            layout.label(text=text)
         else:
             layout.prop(self, "my_enum_prop", text=text)
 
@@ -103,7 +103,7 @@ class MyCustomNode(Node, MyCustomTreeNode):
 
     # Additional buttons displayed on the node.
     def draw_buttons(self, context, layout):
-        layout.label("Node settings")
+        layout.label(text="Node settings")
         layout.prop(self, "my_float_prop")
 
     # Detail buttons in the sidebar.

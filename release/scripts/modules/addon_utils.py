@@ -30,7 +30,7 @@ __all__ = (
 )
 
 import bpy as _bpy
-_user_preferences = _bpy.context.user_preferences
+_preferences = _bpy.context.preferences
 
 error_encoding = False
 # (name, file, path)
@@ -43,7 +43,7 @@ def _initialize():
     path_list = paths()
     for path in path_list:
         _bpy.utils._sys_path_ensure(path)
-    for addon in _user_preferences.addons:
+    for addon in _preferences.addons:
         enable(addon.module)
 
 
@@ -211,8 +211,8 @@ def modules(module_cache=addons_fake_modules, *, refresh=True):
     mod_list = list(module_cache.values())
     mod_list.sort(
         key=lambda mod: (
-            mod.bl_info["category"],
-            mod.bl_info["name"],
+            mod.bl_info.get("category", ""),
+            mod.bl_info.get("name", ""),
         )
     )
     return mod_list
@@ -231,7 +231,7 @@ def check(module_name):
     :rtype: tuple of booleans
     """
     import sys
-    loaded_default = module_name in _user_preferences.addons
+    loaded_default = module_name in _preferences.addons
 
     mod = sys.modules.get(module_name)
     loaded_state = (
@@ -258,7 +258,7 @@ def check(module_name):
 
 
 def _addon_ensure(module_name):
-    addons = _user_preferences.addons
+    addons = _preferences.addons
     addon = addons.get(module_name)
     if not addon:
         addon = addons.new()
@@ -266,7 +266,7 @@ def _addon_ensure(module_name):
 
 
 def _addon_remove(module_name):
-    addons = _user_preferences.addons
+    addons = _preferences.addons
 
     while module_name in addons:
         addon = addons.get(module_name)
@@ -295,7 +295,7 @@ def enable(module_name, *, default_set=False, persistent=False, handle_error=Non
     from bpy_restrict_state import RestrictBlend
 
     if handle_error is None:
-        def handle_error(ex):
+        def handle_error(_ex):
             import traceback
             traceback.print_exc()
 
@@ -342,8 +342,8 @@ def enable(module_name, *, default_set=False, persistent=False, handle_error=Non
     # Split registering up into 3 steps so we can undo
     # if it fails par way through.
 
-    # disable the context, using the context at all is
-    # really bad while loading an addon, don't do it!
+    # Disable the context: using the context at all
+    # while loading an addon is really bad, don't do it!
     with RestrictBlend():
 
         # 1) try import
@@ -352,7 +352,7 @@ def enable(module_name, *, default_set=False, persistent=False, handle_error=Non
             mod.__time__ = os.path.getmtime(mod.__file__)
             mod.__addon_enabled__ = False
         except Exception as ex:
-            # if the addon doesn't exist, dont print full traceback
+            # if the addon doesn't exist, don't print full traceback
             if type(ex) is ImportError and ex.name == module_name:
                 print("addon not found:", repr(module_name))
             else:
@@ -362,31 +362,16 @@ def enable(module_name, *, default_set=False, persistent=False, handle_error=Non
                 _addon_remove(module_name)
             return None
 
-        # 1.1) fail when add-on is too old
+        # 1.1) Fail when add-on is too old.
         # This is a temporary 2.8x migration check, so we can manage addons that are supported.
 
-        # Silent default, we know these need updating.
-        if module_name in {
-            "io_anim_bvh",
-            "io_mesh_ply",
-            "io_mesh_stl",
-            "io_mesh_uv_layout",
-            "io_scene_3ds",
-            "io_scene_fbx",
-            "io_scene_obj",
-            "io_scene_x3d",
-        }:
+        if mod.bl_info.get("blender", (0, 0, 0)) < (2, 80, 0):
+            if _bpy.app.debug:
+                print(f"Warning: Add-on '{module_name:s}' was not upgraded for 2.80, ignoring")
             return None
 
-        try:
-            if mod.bl_info.get("blender", (0, 0, 0)) < (2, 80, 0):
-                raise Exception(f"Add-on '{module_name:s}' has not been upgraded to 2.8, ignoring")
-        except Exception as ex:
-            handle_error(ex)
-            return None
-
-        # 2) try register collected modules
-        # removed, addons need to handle own registration now.
+        # 2) Try register collected modules.
+        # Removed register_module, addons need to handle their own registration now.
 
         use_owner = mod.bl_info.get("use_owner", True)
         if use_owner:
@@ -394,7 +379,7 @@ def enable(module_name, *, default_set=False, persistent=False, handle_error=Non
             owner_id_prev = _bl_owner_id_get()
             _bl_owner_id_set(module_name)
 
-        # 3) try run the modules register function
+        # 3) Try run the modules register function.
         try:
             mod.register()
         except Exception as ex:
@@ -435,7 +420,7 @@ def disable(module_name, *, default_set=False, handle_error=None):
     import sys
 
     if handle_error is None:
-        def handle_error(ex):
+        def handle_error(_ex):
             import traceback
             traceback.print_exc()
 
@@ -483,7 +468,7 @@ def reset_all(*, reload_scripts=False):
 
     for path in paths_list:
         _bpy.utils._sys_path_ensure(path)
-        for mod_name, mod_path in _bpy.path.module_names(path):
+        for mod_name, _mod_path in _bpy.path.module_names(path):
             is_enabled, is_loaded = check(mod_name)
 
             # first check if reload is needed before changing state.
@@ -504,7 +489,12 @@ def reset_all(*, reload_scripts=False):
 
 def disable_all():
     import sys
-    for mod_name, mod in sys.modules.items():
+    # Collect modules to disable first because dict can be modified as we disable.
+    addon_modules = [
+        item for item in sys.modules.items()
+        if getattr(item[1], "__addon_enabled__", False)
+    ]
+    for mod_name, mod in addon_modules:
         if getattr(mod, "__addon_enabled__", False):
             disable(mod_name)
 

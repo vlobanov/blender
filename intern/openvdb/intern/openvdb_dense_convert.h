@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2015 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Kevin Dietrich
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __OPENVDB_DENSE_CONVERT_H__
@@ -79,14 +71,14 @@ typename GridType::Ptr OpenVDB_export_grid(
 		const float clipping,
         const openvdb::FloatGrid *mask)
 {
-	using namespace openvdb;
+  using namespace openvdb;
 
 	math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
 
-	typename GridType::Ptr grid = GridType::create(T(0));
+  typename GridType::Ptr grid = GridType::create(T(0));
 
-	tools::Dense<const T, openvdb::tools::LayoutXYZ> dense_grid(bbox, data);
-	tools::copyFromDense(dense_grid, grid->tree(), static_cast<T>(clipping));
+  tools::Dense<const T, openvdb::tools::LayoutXYZ> dense_grid(bbox, data);
+  tools::copyFromDense(dense_grid, grid->tree(), static_cast<T>(clipping));
 
 	if(fluid_mat) {
 		Mat4R mat = convertMatrix(fluid_mat);
@@ -94,14 +86,14 @@ typename GridType::Ptr OpenVDB_export_grid(
 		grid->setTransform(transform);
 	}
 
-	/* Avoid clipping against an empty grid. */
-	if (mask && !mask->tree().empty()) {
-		grid = tools::clip(*grid, *mask);
-	}
+  /* Avoid clipping against an empty grid. */
+  if (mask && !mask->tree().empty()) {
+    grid = tools::clip(*grid, *mask);
+  }
 
-	grid->setName(name);
-	grid->setIsInWorldSpace(false);
-	grid->setVectorType(openvdb::VEC_INVARIANT);
+  grid->setName(name);
+  grid->setIsInWorldSpace(false);
+  grid->setVectorType(openvdb::VEC_INVARIANT);
 
 	if(writer) {
 		writer->insert(grid);
@@ -214,6 +206,6 @@ void OpenVDB_import_grid(
 	}
 }
 
-}  /* namespace internal */
+} /* namespace internal */
 
 #endif /* __OPENVDB_DENSE_CONVERT_H__ */

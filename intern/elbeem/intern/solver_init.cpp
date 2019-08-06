@@ -1,5 +1,5 @@
-/** \file elbeem/intern/solver_init.cpp
- *  \ingroup elbeem
+/** \file
+ * \ingroup elbeem
  */
 /******************************************************************************
  *
@@ -707,7 +707,7 @@ bool LbmFsgrSolver::initializeSolverMemory()
 			noLimit = true;
 		}
 
-		// restrict max. chunk of 1 mem block to 1GB for windos
+		// restrict max. chunk of 1 mem block to 1GB for windows
 		bool memBlockAllocProblem = false;
 		double maxDefaultMemChunk = 2.*1024.*1024.*1024.;
 		//std::cerr<<" memEstFine "<< memEstFine <<" maxWin:" <<maxWinMemChunk <<" maxMac:" <<maxMacMemChunk ; // DEBUG

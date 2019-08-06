@@ -33,18 +33,18 @@ ccl_device_inline float3 volume_normalized_position(KernelGlobals *kg,
                                                     const ShaderData *sd,
                                                     float3 P)
 {
-	/* todo: optimize this so it's just a single matrix multiplication when
-	 * possible (not motion blur), or perhaps even just translation + scale */
-	const AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_GENERATED_TRANSFORM);
+  /* todo: optimize this so it's just a single matrix multiplication when
+   * possible (not motion blur), or perhaps even just translation + scale */
+  const AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_GENERATED_TRANSFORM);
 
-	object_inverse_position_transform(kg, sd, &P);
+  object_inverse_position_transform(kg, sd, &P);
 
-	if(desc.offset != ATTR_STD_NOT_FOUND) {
-		Transform tfm = primitive_attribute_matrix(kg, sd, desc);
-		P = transform_point(&tfm, P);
-	}
+  if (desc.offset != ATTR_STD_NOT_FOUND) {
+    Transform tfm = primitive_attribute_matrix(kg, sd, desc);
+    P = transform_point(&tfm, P);
+  }
 
-	return P;
+  return P;
 }
 
 /* Returns normalized P.
@@ -95,16 +95,13 @@ ccl_device float3 volume_attribute_float3(KernelGlobals *kg, const ShaderData *s
 	InterpolationType interp = (sd->flag & SD_VOLUME_CUBIC)? INTERPOLATION_CUBIC: INTERPOLATION_NONE;
 	float4 r = kernel_tex_image_interp_3d(kg, desc.offset, sd->P_v.x, sd->P_v.y, sd->P_v.z, interp);
 
-	if(dx) *dx = make_float3(0.0f, 0.0f, 0.0f);
-	if(dy) *dy = make_float3(0.0f, 0.0f, 0.0f);
-
-	if(r.w > 1e-6f && r.w != 1.0f) {
-		/* For RGBA colors, unpremultiply after interpolation. */
-		return float4_to_float3(r) / r.w;
-	}
-	else {
-		return float4_to_float3(r);
-	}
+  if (r.w > 1e-6f && r.w != 1.0f) {
+    /* For RGBA colors, unpremultiply after interpolation. */
+    return float4_to_float3(r) / r.w;
+  }
+  else {
+    return float4_to_float3(r);
+  }
 }
 
 #endif

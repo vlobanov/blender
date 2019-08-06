@@ -178,28 +178,34 @@ def enable_addons(addons=None, support=None, disable=False, check_only=False):
     if support is None:
         support = {}
 
-    userpref = bpy.context.user_preferences
-    used_ext = {ext.module for ext in userpref.addons}
+    prefs = bpy.context.preferences
+    used_ext = {ext.module for ext in prefs.addons}
+    # In case we need to blacklist some add-ons...
+    black_list = {}
 
     ret = [
         mod for mod in addon_utils.modules()
-        if ((addons and mod.__name__ in addons) or
-            (not addons and addon_utils.module_bl_info(mod)["support"] in support))
+        if (((addons and mod.__name__ in addons) or
+            (not addons and addon_utils.module_bl_info(mod)["support"] in support)) and
+            (mod.__name__ not in black_list))
     ]
 
     if not check_only:
         for mod in ret:
-            module_name = mod.__name__
-            if disable:
-                if module_name not in used_ext:
-                    continue
-                print("    Disabling module ", module_name)
-                bpy.ops.wm.addon_disable(module=module_name)
-            else:
-                if module_name in used_ext:
-                    continue
-                print("    Enabling module ", module_name)
-                bpy.ops.wm.addon_enable(module=module_name)
+            try:
+                module_name = mod.__name__
+                if disable:
+                    if module_name not in used_ext:
+                        continue
+                    print("    Disabling module ", module_name)
+                    bpy.ops.preferences.addon_disable(module=module_name)
+                else:
+                    if module_name in used_ext:
+                        continue
+                    print("    Enabling module ", module_name)
+                    bpy.ops.preferences.addon_enable(module=module_name)
+            except Exception as e:  # XXX TEMP WORKAROUND
+                print(e)
 
         # XXX There are currently some problems with bpy/rna...
         #     *Very* tricky to solve!
@@ -208,7 +214,7 @@ def enable_addons(addons=None, support=None, disable=False, check_only=False):
         for cat in dir(bpy.ops):
             cat = getattr(bpy.ops, cat)
             for op in dir(cat):
-                getattr(cat, op).get_rna()
+                getattr(cat, op).get_rna_type()
 
     return ret
 
@@ -457,7 +463,7 @@ class I18nMessages:
     def check(self, fix=False):
         """
         Check consistency between messages and their keys!
-        Check messages using format stuff are consistant between msgid and msgstr!
+        Check messages using format stuff are consistent between msgid and msgstr!
         If fix is True, tries to fix the issues.
         Return a list of found errors (empty if everything went OK!).
         """
@@ -1333,7 +1339,7 @@ class I18n:
     def parse_from_py(self, src, langs=set()):
         """
         src must be a valid path, either a py file or a module directory (in which case all py files inside it
-        will be checked, first file macthing will win!).
+        will be checked, first file matching will win!).
         if langs set is void, all languages found are loaded.
         """
         default_context = self.settings.DEFAULT_CONTEXT

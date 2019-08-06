@@ -26,12 +26,12 @@ extern "C" {
 // Keep this a bitmask os it's possible to pass available
 // evaluators to Blender.
 typedef enum eOpenSubdivEvaluator {
-  OPENSUBDIV_EVALUATOR_CPU                     = (1 << 0),
-  OPENSUBDIV_EVALUATOR_OPENMP                  = (1 << 1),
-  OPENSUBDIV_EVALUATOR_OPENCL                  = (1 << 2),
-  OPENSUBDIV_EVALUATOR_CUDA                    = (1 << 3),
+  OPENSUBDIV_EVALUATOR_CPU = (1 << 0),
+  OPENSUBDIV_EVALUATOR_OPENMP = (1 << 1),
+  OPENSUBDIV_EVALUATOR_OPENCL = (1 << 2),
+  OPENSUBDIV_EVALUATOR_CUDA = (1 << 3),
   OPENSUBDIV_EVALUATOR_GLSL_TRANSFORM_FEEDBACK = (1 << 4),
-  OPENSUBDIV_EVALUATOR_GLSL_COMPUTE            = (1 << 5),
+  OPENSUBDIV_EVALUATOR_GLSL_COMPUTE = (1 << 5),
 } eOpenSubdivEvaluator;
 
 typedef enum OpenSubdiv_SchemeType {
@@ -39,6 +39,15 @@ typedef enum OpenSubdiv_SchemeType {
   OSD_SCHEME_CATMARK,
   OSD_SCHEME_LOOP,
 } OpenSubdiv_SchemeType;
+
+typedef enum OpenSubdiv_VtxBoundaryInterpolation {
+  // Do not interpolate boundaries
+  OSD_VTX_BOUNDARY_NONE,
+  // Sharpen edges.
+  OSD_VTX_BOUNDARY_EDGE_ONLY,
+  // sharpen edges and corners,
+  OSD_VTX_BOUNDARY_EDGE_AND_CORNER,
+} OpenSubdiv_VtxBoundaryInterpolation;
 
 typedef enum OpenSubdiv_FVarLinearInterpolation {
   OSD_FVAR_LINEAR_INTERPOLATION_NONE,

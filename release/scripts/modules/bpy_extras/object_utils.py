@@ -33,8 +33,8 @@ import bpy
 
 from bpy.props import (
     BoolProperty,
-    BoolVectorProperty,
     FloatVectorProperty,
+    EnumProperty,
 )
 
 
@@ -61,46 +61,40 @@ def add_object_align_init(context, operator):
     if operator and properties.is_property_set("location"):
         location = Matrix.Translation(Vector(properties.location))
     else:
-        if space_data:  # local view cursor is detected below
-            location = Matrix.Translation(space_data.cursor_location)
-        else:
-            location = Matrix.Translation(context.scene.cursor_location)
+        location = Matrix.Translation(context.scene.cursor.location)
 
         if operator:
             properties.location = location.to_translation()
 
     # rotation
-    view_align = (context.user_preferences.edit.object_align == 'VIEW')
-    view_align_force = False
+    add_align_preference = context.preferences.edit.object_align
     if operator:
-        if properties.is_property_set("view_align"):
-            view_align = view_align_force = operator.view_align
-        else:
-            if properties.is_property_set("rotation"):
-                # ugh, 'view_align' callback resets
-                value = properties.rotation[:]
-                properties.view_align = view_align
-                properties.rotation = value
-                del value
-            else:
-                properties.view_align = view_align
+        if not properties.is_property_set("rotation"):
+            # So one of "align" and "rotation" will be set
+            properties.align = add_align_preference
 
-    if operator and (properties.is_property_set("rotation") and
-                     not view_align_force):
-
-        rotation = Euler(properties.rotation).to_matrix().to_4x4()
-    else:
-        if view_align and space_data:
+        if properties.align == 'WORLD':
+            rotation = properties.rotation.to_matrix().to_4x4()
+        elif properties.align == 'VIEW':
             rotation = space_data.region_3d.view_matrix.to_3x3().inverted()
             rotation.resize_4x4()
+            properties.rotation = rotation.to_euler()
+        elif properties.align == 'CURSOR':
+            rotation = context.scene.cursor.matrix
+            rotation.col[3][0:3] = 0.0, 0.0, 0.0
+            properties.rotation = rotation.to_euler()
+        else:
+            rotation = properties.rotation.to_matrix().to_4x4()
+    else:
+        if (add_align_preference == 'VIEW') and space_data:
+            rotation = space_data.region_3d.view_matrix.to_3x3().inverted()
+            rotation.resize_4x4()
+        elif add_align_preference == 'CURSOR':
+            rotation = context.scene.cursor.rotation_euler.to_matrix().to_4x4()
         else:
             rotation = Matrix()
 
-        # set the operator properties
-        if operator:
-            properties.rotation = rotation.to_euler()
-
-    return location * rotation
+    return location @ rotation
 
 
 def object_data_add(context, obdata, operator=None, name=None):
@@ -121,17 +115,11 @@ def object_data_add(context, obdata, operator=None, name=None):
     """
     scene = context.scene
     layer = context.view_layer
-    layer_collection = context.layer_collection
+    layer_collection = context.layer_collection or layer.active_layer_collection
+    scene_collection = layer_collection.collection
 
     for ob in layer.objects:
-        ob.select_set(action='DESELECT')
-
-    if not layer_collection:
-        # when there is no collection linked to this view_layer create one
-        scene_collection = scene.master_collection.collections.new("")
-        layer_collection = layer.collections.link(scene_collection)
-    else:
-        scene_collection = layer_collection.collection
+        ob.select_set(False)
 
     if name is None:
         name = "Object" if obdata is None else obdata.name
@@ -139,37 +127,25 @@ def object_data_add(context, obdata, operator=None, name=None):
     obj_act = layer.objects.active
     obj_new = bpy.data.objects.new(name, obdata)
     scene_collection.objects.link(obj_new)
-    obj_new.select_set(action='SELECT')
+    obj_new.select_set(True)
     obj_new.matrix_world = add_object_align_init(context, operator)
 
-    # XXX
-    # caused because entering edit-mode does not add a empty undo slot!
-    if context.user_preferences.edit.use_enter_edit_mode:
-        if not (obj_act and
-                obj_act.mode == 'EDIT' and
-                obj_act.type == obj_new.type):
-
-            _obdata = bpy.data.meshes.new(name)
-            obj_act = bpy.data.objects.new(_obdata.name, _obdata)
-            obj_act.matrix_world = obj_new.matrix_world
-            scene_collection.objects.link(obj_act)
-            layer.objects.active = obj_act
-            bpy.ops.object.mode_set(mode='EDIT')
-            # need empty undo step
-            bpy.ops.ed.undo_push(message="Enter Editmode")
-    # XXX
+    space_data = context.space_data
+    if space_data.type == 'VIEW_3D':
+        if space_data.local_view:
+            obj_new.local_view_set(space_data, True)
 
     if obj_act and obj_act.mode == 'EDIT' and obj_act.type == obj_new.type:
         bpy.ops.mesh.select_all(action='DESELECT')
-        obj_act.select_set(action='SELECT')
+        obj_act.select_set(True)
         bpy.ops.object.mode_set(mode='OBJECT')
 
-        obj_act.select_set(action='SELECT')
-        scene.update()  # apply location
+        obj_act.select_set(True)
+        layer.update()  # apply location
         # layer.objects.active = obj_new
 
         # Match up UV layers, this is needed so adding an object with UV's
-        # doesn't create new layers when there happens to be a naming mis-match.
+        # doesn't create new layers when there happens to be a naming mismatch.
         uv_new = obdata.uv_layers.active
         if uv_new is not None:
             uv_act = obj_act.data.uv_layers.active
@@ -183,21 +159,27 @@ def object_data_add(context, obdata, operator=None, name=None):
         bpy.ops.object.mode_set(mode='EDIT')
     else:
         layer.objects.active = obj_new
-        if context.user_preferences.edit.use_enter_edit_mode:
+        if context.preferences.edit.use_enter_edit_mode:
             bpy.ops.object.mode_set(mode='EDIT')
 
     return obj_new
 
 
 class AddObjectHelper:
-    def view_align_update_callback(self, context):
-        if not self.view_align:
+    def align_update_callback(self, _context):
+        if self.align == 'WORLD':
             self.rotation.zero()
 
-    view_align: BoolProperty(
-        name="Align to View",
-        default=False,
-        update=view_align_update_callback,
+    align_items = (
+        ('WORLD', "World", "Align the new object to the world"),
+        ('VIEW', "View", "Align the new object to the view"),
+        ('CURSOR', "3D Cursor", "Use the 3D cursor orientation for the new object")
+    )
+    align: EnumProperty(
+        name="Align",
+        items=align_items,
+        default='WORLD',
+        update=align_update_callback,
     )
     location: FloatVectorProperty(
         name="Location",
@@ -209,7 +191,7 @@ class AddObjectHelper:
     )
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         return context.scene.library is None
 
 
@@ -308,7 +290,7 @@ def world_to_camera_view(scene, obj, coord):
     """
     from mathutils import Vector
 
-    co_local = obj.matrix_world.normalized().inverted() * coord
+    co_local = obj.matrix_world.normalized().inverted() @ coord
     z = -co_local.z
 
     camera = obj.data

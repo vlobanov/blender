@@ -38,17 +38,15 @@ class TOPBAR_HT_upper_bar(Header):
         window = context.window
         screen = context.screen
 
-        layout.operator("wm.splash", text="", icon='BLENDER', emboss=False)
-
-        INFO_MT_editor_menus.draw_collapsible(context, layout)
+        TOPBAR_MT_editor_menus.draw_collapsible(context, layout)
 
         layout.separator()
 
         if not screen.show_fullscreen:
             layout.template_ID_tabs(
                 window, "workspace",
-                new="workspace.workspace_add_menu",
-                unlink="workspace.workspace_delete",
+                new="workspace.add",
+                menu="TOPBAR_MT_workspace_menu",
             )
         else:
             layout.operator(
@@ -61,7 +59,13 @@ class TOPBAR_HT_upper_bar(Header):
         layout = self.layout
 
         window = context.window
+        screen = context.screen
         scene = window.scene
+
+        # If statusbar is hidden, still show messages at the top
+        if not screen.show_statusbar:
+            layout.template_reports_banner()
+            layout.template_running_jobs()
 
         # Active workspace view-layer is retrieved through window, not through workspace.
         layout.template_ID(window, "scene", new="scene.new", unlink="scene.delete")
@@ -74,209 +78,132 @@ class TOPBAR_HT_upper_bar(Header):
             unlink="scene.view_layer_remove")
 
 
-class TOPBAR_HT_lower_bar(Header):
-    bl_space_type = 'TOPBAR'
-    bl_region_type = 'WINDOW'
+class TOPBAR_PT_gpencil_layers(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_label = "Layers"
+    bl_ui_units_x = 14
+
+    @classmethod
+    def poll(cls, context):
+        if context.gpencil_data is None:
+            return False
+
+        ob = context.object
+        if ob is not None and ob.type == 'GPENCIL':
+            return True
+
+        return False
 
     def draw(self, context):
         layout = self.layout
-        region = context.region
+        gpd = context.gpencil_data
 
-        if region.alignment == 'LEFT':
-            self.draw_left(context)
-        elif region.alignment == 'RIGHT':
-            self.draw_right(context)
+        # Grease Pencil data...
+        if (gpd is None) or (not gpd.layers):
+            layout.operator("gpencil.layer_add", text="New Layer")
         else:
-            self.draw_center(context)
+            self.draw_layers(context, layout, gpd)
 
-    def draw_left(self, context):
-        layout = self.layout
-        mode = context.mode
+    def draw_layers(self, context, layout, gpd):
+        row = layout.row()
 
-        # Active Tool
-        # -----------
-        from .space_toolsystem_common import ToolSelectPanelHelper
-        ToolSelectPanelHelper.draw_active_tool_header(context, layout)
+        col = row.column()
+        layer_rows = 10
+        col.template_list("GPENCIL_UL_layer", "", gpd, "layers", gpd.layers, "active_index",
+                          rows=layer_rows, sort_reverse=True, sort_lock=True)
 
-        # Object Mode Options
-        # -------------------
+        gpl = context.active_gpencil_layer
+        if gpl:
+            srow = col.row(align=True)
+            srow.prop(gpl, "blend_mode", text="Blend")
 
-        # Example of how toolsettings can be accessed as pop-overs.
+            srow = col.row(align=True)
+            srow.prop(gpl, "opacity", text="Opacity", slider=True)
+            srow.prop(gpl, "mask_layer", text="",
+                      icon='MOD_MASK' if gpl.mask_layer else 'LAYER_ACTIVE')
 
-        # TODO(campbell): editing options should be after active tool options
-        # (obviously separated for from the users POV)
-        draw_fn = getattr(_draw_left_context_mode, mode, None)
-        if draw_fn is not None:
-            draw_fn(context, layout)
+            srow = col.row(align=True)
+            srow.prop(gpl, "use_solo_mode", text="Show Only On Keyframed")
 
-        # Note: general mode options should be added to 'draw_right'.
-        if mode == 'SCULPT':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".paint_common", category="")
-        elif mode == 'PAINT_VERTEX':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".paint_common", category="")
-        elif mode == 'PAINT_WEIGHT':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".paint_common", category="")
-        elif mode == 'PAINT_TEXTURE':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".paint_common", category="")
-        elif mode == 'EDIT_ARMATURE':
-            pass
-        elif mode == 'EDIT_CURVE':
-            pass
-        elif mode == 'EDIT_MESH':
-            pass
-        elif mode == 'POSE':
-            pass
-        elif mode == 'PARTICLE':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".paint_common", category="")
-        elif mode == 'GPENCIL_PAINT':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".greasepencil_paint", category="")
+        col = row.column()
 
-    def draw_center(self, context):
-        pass
+        sub = col.column(align=True)
+        sub.operator("gpencil.layer_add", icon='ADD', text="")
+        sub.operator("gpencil.layer_remove", icon='REMOVE', text="")
 
-    def draw_right(self, context):
-        layout = self.layout
+        gpl = context.active_gpencil_layer
+        if gpl:
+            sub.menu("GPENCIL_MT_layer_context_menu", icon='DOWNARROW_HLT', text="")
 
-        # General options, note, these _could_ display at the RHS of the draw_left callback.
-        # we just want them not to be confused with tool options.
-        mode = context.mode
+            if len(gpd.layers) > 1:
+                col.separator()
 
-        if mode == 'SCULPT':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".sculpt_mode", category="")
-        elif mode == 'PAINT_VERTEX':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".vertexpaint", category="")
-        elif mode == 'PAINT_WEIGHT':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".weightpaint", category="")
-        elif mode == 'PAINT_TEXTURE':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".imagepaint", category="")
-        elif mode == 'EDIT_TEXT':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".text_edit", category="")
-        elif mode == 'EDIT_ARMATURE':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".armature_edit", category="")
-        elif mode == 'EDIT_METABALL':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".mball_edit", category="")
-        elif mode == 'EDIT_LATTICE':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".lattice_edit", category="")
-        elif mode == 'EDIT_CURVE':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".curve_edit", category="")
-        elif mode == 'EDIT_MESH':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".mesh_edit", category="")
-        elif mode == 'POSE':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".posemode", category="")
-        elif mode == 'PARTICLE':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".particlemode", category="")
-        elif mode == 'OBJECT':
-            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".objectmode", category="")
-        elif mode == 'GPENCIL_PAINT':
-            layout.prop(context.tool_settings, "gpencil_stroke_placement_view3d", text='')
-            if context.tool_settings.gpencil_stroke_placement_view3d in ('ORIGIN', 'CURSOR'):
-                layout.prop(context.tool_settings.gpencil_sculpt, "lockaxis", text='')
-            layout.prop(context.tool_settings, "use_gpencil_draw_onback", text="", icon='ORTHO')
-            layout.prop(context.tool_settings, "use_gpencil_additive_drawing", text="", icon='FREEZE')
+                sub = col.column(align=True)
+                sub.operator("gpencil.layer_move", icon='TRIA_UP', text="").type = 'UP'
+                sub.operator("gpencil.layer_move", icon='TRIA_DOWN', text="").type = 'DOWN'
 
-        elif mode == 'GPENCIL_SCULPT':
-            layout.prop(context.tool_settings.gpencil_sculpt, "lockaxis", text='')
+                col.separator()
+
+                sub = col.column(align=True)
+                sub.operator("gpencil.layer_isolate", icon='LOCKED', text="").affect_visibility = False
+                sub.operator("gpencil.layer_isolate", icon='HIDE_OFF', text="").affect_visibility = True
 
 
-class _draw_left_context_mode:
-    @staticmethod
-    def SCULPT(context, layout):
-        brush = context.tool_settings.sculpt.brush
-        if brush is None:
-            return
-
-        from .properties_paint_common import UnifiedPaintPanel
-
-        UnifiedPaintPanel.prop_unified_size(layout, context, brush, "size", slider=True, text="Radius")
-        UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength", slider=True, text="Strength")
-        layout.prop(brush, "direction", text="", expand=True)
-
-    def PAINT_TEXTURE(context, layout):
-        brush = context.tool_settings.vertex_paint.brush
-        if brush is None:
-            return
-
-        from .properties_paint_common import UnifiedPaintPanel
-
-        layout.prop(brush, "color", text="")
-        UnifiedPaintPanel.prop_unified_size(layout, context, brush, "size", slider=True, text="Radius")
-        UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength", slider=True, text="Strength")
-
-    def PAINT_VERTEX(context, layout):
-        brush = context.tool_settings.vertex_paint.brush
-        if brush is None:
-            return
-
-        from .properties_paint_common import UnifiedPaintPanel
-
-        layout.prop(brush, "color", text="")
-        UnifiedPaintPanel.prop_unified_size(layout, context, brush, "size", slider=True, text="Radius")
-        UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength", slider=True, text="Strength")
-
-    def PAINT_WEIGHT(context, layout):
-        brush = context.tool_settings.weight_paint.brush
-        if brush is None:
-            return
-
-        from .properties_paint_common import UnifiedPaintPanel
-
-        UnifiedPaintPanel.prop_unified_weight(layout, context, brush, "weight", slider=True, text="Weight")
-        UnifiedPaintPanel.prop_unified_size(layout, context, brush, "size", slider=True, text="Radius")
-        UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength", slider=True, text="Strength")
-
-    def PARTICLE(context, layout):
-        # See: 'VIEW3D_PT_tools_brush', basically a duplicate
-        settings = context.tool_settings.particle_edit
-        brush = settings.brush
-        tool = settings.tool
-        if tool != 'NONE':
-            layout.prop(brush, "size", slider=True)
-            if tool == 'ADD':
-                layout.prop(brush, "count")
-            else:
-                layout.prop(brush, "strength", slider=True)
-
-            if tool == 'ADD':
-                layout.prop(settings, "use_default_interpolate")
-                layout.prop(brush, "steps", slider=True)
-                layout.prop(settings, "default_key_count", slider=True)
-            elif tool == 'LENGTH':
-                layout.row().prop(brush, "length_mode", expand=True)
-            elif tool == 'PUFF':
-                layout.row().prop(brush, "puff_mode", expand=True)
-                layout.prop(brush, "use_puff_volume")
-
-class INFO_MT_editor_menus(Menu):
-    bl_idname = "INFO_MT_editor_menus"
+class TOPBAR_MT_editor_menus(Menu):
+    bl_idname = "TOPBAR_MT_editor_menus"
     bl_label = ""
 
     def draw(self, context):
-        self.draw_menus(self.layout, context)
+        layout = self.layout
 
-    @staticmethod
-    def draw_menus(layout, context):
-        layout.menu("INFO_MT_file")
-        layout.menu("INFO_MT_edit")
+        if context.area.show_menus:
+            layout.menu("TOPBAR_MT_app", text="", icon='BLENDER')
+        else:
+            layout.menu("TOPBAR_MT_app", text="Blender")
 
-        layout.menu("INFO_MT_render")
+        layout.menu("TOPBAR_MT_file")
+        layout.menu("TOPBAR_MT_edit")
 
-        layout.menu("INFO_MT_window")
-        layout.menu("INFO_MT_help")
+        layout.menu("TOPBAR_MT_render")
+
+        layout.menu("TOPBAR_MT_window")
+        layout.menu("TOPBAR_MT_help")
 
 
-class INFO_MT_file(Menu):
+class TOPBAR_MT_app(Menu):
+    bl_label = "Blender"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("wm.splash")
+
+        layout.separator()
+
+        layout.menu("TOPBAR_MT_app_support")
+
+        layout.separator()
+
+        layout.menu("TOPBAR_MT_app_about")
+
+        layout.separator()
+
+        layout.operator("preferences.app_template_install", text="Install Application Template...")
+
+
+class TOPBAR_MT_file(Menu):
     bl_label = "File"
 
     def draw(self, context):
         layout = self.layout
 
         layout.operator_context = 'INVOKE_AREA'
-        layout.operator("wm.read_homefile", text="New", icon='NEW')
+        layout.menu("TOPBAR_MT_file_new", text="New", icon='FILE_NEW')
         layout.operator("wm.open_mainfile", text="Open...", icon='FILE_FOLDER')
-        layout.menu("INFO_MT_file_open_recent")
+        layout.menu("TOPBAR_MT_file_open_recent")
         layout.operator("wm.revert_mainfile")
-        layout.operator("wm.recover_last_session")
-        layout.operator("wm.recover_auto_save", text="Recover Auto Save...")
+        layout.menu("TOPBAR_MT_file_recover")
 
         layout.separator()
 
@@ -291,38 +218,181 @@ class INFO_MT_file(Menu):
         layout.separator()
 
         layout.operator_context = 'INVOKE_AREA'
-        layout.operator("wm.save_homefile")
-        layout.operator("wm.read_factory_settings")
-
-        layout.separator()
-
-        layout.operator_context = 'INVOKE_AREA'
         layout.operator("wm.link", text="Link...", icon='LINK_BLEND')
         layout.operator("wm.append", text="Append...", icon='APPEND_BLEND')
-        layout.menu("INFO_MT_file_previews")
+        layout.menu("TOPBAR_MT_file_previews")
 
         layout.separator()
 
-        layout.menu("INFO_MT_file_import", icon='IMPORT')
-        layout.menu("INFO_MT_file_export", icon='EXPORT')
+        layout.menu("TOPBAR_MT_file_import", icon='IMPORT')
+        layout.menu("TOPBAR_MT_file_export", icon='EXPORT')
 
         layout.separator()
 
-        layout.menu("INFO_MT_file_external_data")
+        layout.menu("TOPBAR_MT_file_external_data")
 
         layout.separator()
 
-        layout.operator_context = 'EXEC_AREA'
-        if bpy.data.is_dirty and context.user_preferences.view.use_quit_dialog:
-            layout.operator_context = 'INVOKE_SCREEN'  # quit dialog
+        layout.menu("TOPBAR_MT_file_defaults")
+
+        layout.separator()
+
         layout.operator("wm.quit_blender", text="Quit", icon='QUIT')
 
 
-class INFO_MT_file_import(Menu):
-    bl_idname = "INFO_MT_file_import"
-    bl_label = "Import"
+class TOPBAR_MT_file_new(Menu):
+    bl_label = "New File"
+
+    @staticmethod
+    def app_template_paths():
+        import os
+
+        template_paths = bpy.utils.app_template_paths()
+
+        # expand template paths
+        app_templates = []
+        for path in template_paths:
+            for d in os.listdir(path):
+                if d.startswith(("__", ".")):
+                    continue
+                template = os.path.join(path, d)
+                if os.path.isdir(template):
+                    # template_paths_expand.append(template)
+                    app_templates.append(d)
+
+        return sorted(app_templates)
+
+    @staticmethod
+    def draw_ex(layout, _context, *, use_splash=False, use_more=False):
+        layout.operator_context = 'INVOKE_DEFAULT'
+
+        # Limit number of templates in splash screen, spill over into more menu.
+        paths = TOPBAR_MT_file_new.app_template_paths()
+        splash_limit = 5
+
+        if use_splash:
+            icon = 'FILE_NEW'
+            show_more = len(paths) > (splash_limit - 1)
+            if show_more:
+                paths = paths[:splash_limit - 2]
+        elif use_more:
+            icon = 'FILE_NEW'
+            paths = paths[splash_limit - 2:]
+            show_more = False
+        else:
+            icon = 'NONE'
+            show_more = False
+
+        # Draw application templates.
+        if not use_more:
+            props = layout.operator("wm.read_homefile", text="General", icon=icon)
+            props.app_template = ""
+
+        for d in paths:
+            props = layout.operator(
+                "wm.read_homefile",
+                text=bpy.path.display_name(d),
+                icon=icon,
+            )
+            props.app_template = d
+
+        layout.operator_context = 'EXEC_DEFAULT'
+
+        if show_more:
+            layout.menu("TOPBAR_MT_templates_more", text="...")
 
     def draw(self, context):
+        TOPBAR_MT_file_new.draw_ex(self.layout, context)
+
+
+class TOPBAR_MT_file_recover(Menu):
+    bl_label = "Recover"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("wm.recover_last_session", text="Last Session")
+        layout.operator("wm.recover_auto_save", text="Auto Save...")
+
+
+class TOPBAR_MT_file_defaults(Menu):
+    bl_label = "Defaults"
+
+    def draw(self, context):
+        layout = self.layout
+        prefs = context.preferences
+
+        layout.operator_context = 'INVOKE_AREA'
+
+        if any(bpy.utils.app_template_paths()):
+            app_template = prefs.app_template
+        else:
+            app_template = None
+
+        if app_template:
+            layout.label(text=bpy.path.display_name(app_template, has_ext=False))
+
+        layout.operator("wm.save_homefile")
+        props = layout.operator("wm.read_factory_settings")
+        if app_template:
+            props.app_template = app_template
+
+
+class TOPBAR_MT_app_about(Menu):
+    bl_label = "About"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator(
+            "wm.url_open", text="Release Notes", icon='URL',
+        ).url = "https://www.blender.org/download/releases/%d-%d/" % bpy.app.version[:2]
+
+        layout.separator()
+
+        layout.operator(
+            "wm.url_open", text="Blender Website", icon='URL',
+        ).url = "https://www.blender.org/"
+        layout.operator(
+            "wm.url_open", text="Credits", icon='URL',
+        ).url = "https://www.blender.org/about/credits/"
+
+        layout.separator()
+
+        layout.operator(
+            "wm.url_open", text="License", icon='URL',
+        ).url = "https://www.blender.org/about/license/"
+
+
+class TOPBAR_MT_app_support(Menu):
+    bl_label = "Support Blender"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator(
+            "wm.url_open", text="Development Fund", icon='FUND',
+        ).url = "https://fund.blender.org"
+
+        layout.separator()
+
+        layout.operator(
+            "wm.url_open", text="Blender Store", icon='URL',
+        ).url = "https://store.blender.org"
+
+
+class TOPBAR_MT_templates_more(Menu):
+    bl_label = "Templates"
+
+    def draw(self, context):
+        bpy.types.TOPBAR_MT_file_new.draw_ex(self.layout, context, use_more=True)
+
+
+class TOPBAR_MT_file_import(Menu):
+    bl_idname = "TOPBAR_MT_file_import"
+    bl_label = "Import"
+
+    def draw(self, _context):
         if bpy.app.build_options.collada:
             self.layout.operator("wm.collada_import", text="Collada (Default) (.dae)")
         if bpy.app.build_options.alembic:
@@ -331,21 +401,21 @@ class INFO_MT_file_import(Menu):
             self.layout.operator("wm.openvdb_import", text="OpenVDB (.vdb)")
 
 
-class INFO_MT_file_export(Menu):
-    bl_idname = "INFO_MT_file_export"
+class TOPBAR_MT_file_export(Menu):
+    bl_idname = "TOPBAR_MT_file_export"
     bl_label = "Export"
 
-    def draw(self, context):
+    def draw(self, _context):
         if bpy.app.build_options.collada:
             self.layout.operator("wm.collada_export", text="Collada (Default) (.dae)")
         if bpy.app.build_options.alembic:
             self.layout.operator("wm.alembic_export", text="Alembic (.abc)")
 
 
-class INFO_MT_file_external_data(Menu):
+class TOPBAR_MT_file_external_data(Menu):
     bl_label = "External Data"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         icon = 'CHECKBOX_HLT' if bpy.data.use_autopack else 'CHECKBOX_DEHLT'
@@ -369,10 +439,10 @@ class INFO_MT_file_external_data(Menu):
         layout.operator("file.find_missing_files")
 
 
-class INFO_MT_file_previews(Menu):
+class TOPBAR_MT_file_previews(Menu):
     bl_label = "Data Previews"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("wm.previews_ensure")
@@ -384,28 +454,7 @@ class INFO_MT_file_previews(Menu):
         layout.operator("wm.previews_batch_clear")
 
 
-class INFO_MT_game(Menu):
-    bl_label = "Game"
-
-    def draw(self, context):
-        layout = self.layout
-
-        gs = context.scene.game_settings
-
-        layout.operator("view3d.game_start")
-
-        layout.separator()
-
-        layout.prop(gs, "show_debug_properties")
-        layout.prop(gs, "show_framerate_profile")
-        layout.prop(gs, "show_physics_visualization")
-        layout.prop(gs, "use_deprecation_warnings")
-        layout.prop(gs, "use_animation_record")
-        layout.separator()
-        layout.prop(gs, "use_auto_start")
-
-
-class INFO_MT_render(Menu):
+class TOPBAR_MT_render(Menu):
     bl_label = "Render"
 
     def draw(self, context):
@@ -433,21 +482,7 @@ class INFO_MT_render(Menu):
         layout.prop(rd, "use_lock_interface", text="Lock Interface")
 
 
-class INFO_MT_opengl_render(Menu):
-    bl_label = "OpenGL Render Options"
-
-    def draw(self, context):
-        layout = self.layout
-
-        rd = context.scene.render
-        layout.prop(rd, "use_antialiasing")
-        layout.prop(rd, "use_full_sample")
-
-        layout.prop_menu_enum(rd, "antialiasing_samples")
-        layout.prop_menu_enum(rd, "alpha_mode")
-
-
-class INFO_MT_edit(Menu):
+class TOPBAR_MT_edit(Menu):
     bl_label = "Edit"
 
     def draw(self, context):
@@ -471,7 +506,14 @@ class INFO_MT_edit(Menu):
 
         layout.separator()
 
-        layout.operator("wm.search_menu", text="Operator Search...")
+        layout.operator("wm.search_menu", text="Operator Search...", icon='VIEWZOOM')
+
+        layout.separator()
+
+        # Mainly to expose shortcut since this depends on the context.
+        props = layout.operator("wm.call_panel", text="Rename Active Item...")
+        props.name = "TOPBAR_PT_name"
+        props.keep_open = False
 
         layout.separator()
 
@@ -481,10 +523,10 @@ class INFO_MT_edit(Menu):
 
         layout.separator()
 
-        layout.operator("screen.userpref_show", text="User Preferences...", icon='PREFERENCES')
+        layout.operator("screen.userpref_show", text="Preferences...", icon='PREFERENCES')
 
 
-class INFO_MT_window(Menu):
+class TOPBAR_MT_window(Menu):
     bl_label = "Window"
 
     def draw(self, context):
@@ -506,6 +548,10 @@ class INFO_MT_window(Menu):
 
         layout.separator()
 
+        layout.prop(context.screen, "show_statusbar")
+
+        layout.separator()
+
         layout.operator("screen.screenshot")
 
         if sys.platform[:3] == "win":
@@ -517,21 +563,32 @@ class INFO_MT_window(Menu):
             layout.operator("wm.set_stereo_3d")
 
 
-class INFO_MT_help(Menu):
+class TOPBAR_MT_help(Menu):
     bl_label = "Help"
 
     def draw(self, context):
+        # If 'url_prefill_from_blender' becomes slow it could be made into a separate operator
+        # to avoid constructing the bug report just to show this menu.
+        from bl_ui_utils.bug_report_url import url_prefill_from_blender
+
         layout = self.layout
 
-        show_developer = context.user_preferences.view.show_developer_ui
+        show_developer = context.preferences.view.show_developer_ui
+
+        if bpy.app.version_cycle in {'rc', 'release'}:
+            manual_version = '%d.%d' % bpy.app.version[:2]
+        else:
+            manual_version = 'dev'
 
         layout.operator(
             "wm.url_open", text="Manual", icon='HELP',
-        ).url = "https://docs.blender.org/manual/en/dev/"
-
+        ).url = "https://docs.blender.org/manual/en/" + manual_version + "/"
         layout.operator(
-            "wm.url_open", text="Report a Bug", icon='URL',
-        ).url = "https://developer.blender.org/maniphest/task/edit/form/1"
+            "wm.url_open", text="Tutorials", icon='URL',
+        ).url = "https://www.blender.org/tutorials"
+        layout.operator(
+            "wm.url_open", text="Support", icon='URL',
+        ).url = "https://www.blender.org/support"
 
         layout.separator()
 
@@ -540,45 +597,40 @@ class INFO_MT_help(Menu):
         ).url = "https://www.blender.org/community/"
         layout.operator(
             "wm.url_open", text="Developer Community", icon='URL',
-        ).url = "https://www.blender.org/get-involved/developers/"
+        ).url = "https://devtalk.blender.org"
 
         layout.separator()
 
         layout.operator(
-            "wm.url_open", text="Blender Website", icon='URL',
-        ).url = "https://www.blender.org"
-        layout.operator(
-            "wm.url_open", text="Blender Store", icon='URL',
-        ).url = "https://store.blender.org"
-
-        layout.operator(
-            "wm.url_open", text="Release Notes", icon='URL',
-        ).url = "https://www.blender.org/download/releases/%d-%d/" % bpy.app.version[:2]
-
-        layout.separator()
+            "wm.url_open", text="Python API Reference", icon='URL',
+        ).url = bpy.types.WM_OT_doc_view._prefix
 
         if show_developer:
             layout.operator(
-                "wm.url_open", text="Python API Reference", icon='URL',
-            ).url = bpy.types.WM_OT_doc_view._prefix
+                "wm.url_open", text="Developer Documentation", icon='URL',
+            ).url = "https://wiki.blender.org/wiki/Main_Page"
 
             layout.operator("wm.operator_cheat_sheet", icon='TEXT')
 
-        layout.operator("wm.sysinfo")
+        layout.separator()
+
+        layout.operator(
+            "wm.url_open", text="Report a Bug", icon='URL',
+        ).url = url_prefill_from_blender()
 
         layout.separator()
 
-        layout.operator("wm.splash", icon='BLENDER')
+        layout.operator("wm.sysinfo")
 
 
-class TOPBAR_MT_file_specials(Menu):
+class TOPBAR_MT_file_context_menu(Menu):
     bl_label = "File Context Menu"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator_context = 'INVOKE_AREA'
-        layout.operator("wm.read_homefile", text="New", icon='NEW')
+        layout.menu("TOPBAR_MT_file_new", text="New", icon='FILE_NEW')
         layout.operator("wm.open_mainfile", text="Open...", icon='FILE_FOLDER')
 
         layout.separator()
@@ -588,53 +640,163 @@ class TOPBAR_MT_file_specials(Menu):
 
         layout.separator()
 
-        layout.menu("INFO_MT_file_import", icon='IMPORT')
-        layout.menu("INFO_MT_file_export", icon='EXPORT')
+        layout.menu("TOPBAR_MT_file_import", icon='IMPORT')
+        layout.menu("TOPBAR_MT_file_export", icon='EXPORT')
+
+        layout.separator()
+
+        layout.operator("screen.userpref_show", text="Preferences...", icon='PREFERENCES')
 
 
-class TOPBAR_MT_window_specials(Menu):
-    bl_label = "Window Context Menu"
+class TOPBAR_MT_workspace_menu(Menu):
+    bl_label = "Workspace"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("workspace.duplicate", text="Duplicate", icon='DUPLICATE')
+        if len(bpy.data.workspaces) > 1:
+            layout.operator("workspace.delete", text="Delete", icon='REMOVE')
+
+        layout.separator()
+
+        layout.operator("workspace.reorder_to_front", text="Reorder to Front", icon='TRIA_LEFT_BAR')
+        layout.operator("workspace.reorder_to_back", text="Reorder to Back", icon='TRIA_RIGHT_BAR')
+
+        layout.separator()
+
+        # For key binding discoverability.
+        props = layout.operator("screen.workspace_cycle", text="Previous Workspace")
+        props.direction = 'PREV'
+        props = layout.operator("screen.workspace_cycle", text="Next Workspace")
+        props.direction = 'NEXT'
+
+
+# Grease Pencil Object - Primitive curve
+class TOPBAR_PT_gpencil_primitive(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_label = "Primitives"
+
+    def draw(self, context):
+        settings = context.tool_settings.gpencil_sculpt
+
+        layout = self.layout
+        # Curve
+        layout.template_curve_mapping(settings, "thickness_primitive_curve", brush=True)
+
+
+# Grease Pencil Fill
+class TOPBAR_PT_gpencil_fill(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_label = "Advanced"
+
+    def draw(self, context):
+        paint = context.tool_settings.gpencil_paint
+        brush = paint.brush
+        gp_settings = brush.gpencil_settings
+
+        layout = self.layout
+        # Fill
+        row = layout.row(align=True)
+        row.prop(gp_settings, "fill_factor", text="Resolution")
+        if gp_settings.fill_draw_mode != 'STROKE':
+            row = layout.row(align=True)
+            row.prop(gp_settings, "show_fill", text="Ignore Transparent Strokes")
+            row = layout.row(align=True)
+            row.prop(gp_settings, "fill_threshold", text="Threshold")
+
+
+# Only a popover
+class TOPBAR_PT_name(Panel):
+    bl_space_type = 'TOPBAR'  # dummy
+    bl_region_type = 'HEADER'
+    bl_label = "Rename Active Item"
+    bl_ui_units_x = 14
 
     def draw(self, context):
         layout = self.layout
 
-        layout.operator_context = 'EXEC_AREA'
+        # Edit first editable button in popup
+        def row_with_icon(layout, icon):
+            row = layout.row()
+            row.activate_init = True
+            row.label(icon=icon)
+            return row
 
-        layout.operator("wm.window_new")
-        layout.operator("wm.window_new_main")
+        mode = context.mode
+        scene = context.scene
+        space = context.space_data
+        space_type = None if (space is None) else space.type
+        found = False
+        if space_type == 'SEQUENCE_EDITOR':
+            layout.label(text="Sequence Strip Name")
+            item = getattr(scene.sequence_editor, "active_strip")
+            if item:
+                row = row_with_icon(layout, 'SEQUENCE')
+                row.prop(item, "name", text="")
+                found = True
+        elif space_type == 'NODE_EDITOR':
+            layout.label(text="Node Label")
+            item = context.active_node
+            if item:
+                row = row_with_icon(layout, 'NODE')
+                row.prop(item, "label", text="")
+                found = True
+        else:
+            if mode == 'POSE' or (mode == 'WEIGHT_PAINT' and context.pose_object):
+                layout.label(text="Bone Name")
+                item = context.active_pose_bone
+                if item:
+                    row = row_with_icon(layout, 'BONE_DATA')
+                    row.prop(item, "name", text="")
+                    found = True
+            elif mode == 'EDIT_ARMATURE':
+                layout.label(text="Bone Name")
+                item = context.active_bone
+                if item:
+                    row = row_with_icon(layout, 'BONE_DATA')
+                    row.prop(item, "name", text="")
+                    found = True
+            else:
+                layout.label(text="Object Name")
+                item = context.object
+                if item:
+                    row = row_with_icon(layout, 'OBJECT_DATA')
+                    row.prop(item, "name", text="")
+                    found = True
 
-        layout.operator_context = 'INVOKE_AREA'
-
-        layout.operator("screen.area_dupli")
-
-        layout.operator("wm.window_fullscreen_toggle", icon='FULLSCREEN_ENTER')
-
-        layout.separator()
-
-        layout.operator("screen.area_split", text="Horizontal Split").direction = 'HORIZONTAL'
-        layout.operator("screen.area_split", text="Vertical Split").direction = 'VERTICAL'
-
-        layout.separator()
-
-        layout.operator("screen.userpref_show", text="User Preferences...", icon='PREFERENCES')
+        if not found:
+            row = row_with_icon(layout, 'ERROR')
+            row.label(text="No active item")
 
 
 classes = (
     TOPBAR_HT_upper_bar,
-    TOPBAR_HT_lower_bar,
-    TOPBAR_MT_file_specials,
-    TOPBAR_MT_window_specials,
-    INFO_MT_editor_menus,
-    INFO_MT_file,
-    INFO_MT_file_import,
-    INFO_MT_file_export,
-    INFO_MT_file_external_data,
-    INFO_MT_file_previews,
-    INFO_MT_edit,
-    INFO_MT_game,
-    INFO_MT_render,
-    INFO_MT_window,
-    INFO_MT_help,
+    TOPBAR_MT_file_context_menu,
+    TOPBAR_MT_workspace_menu,
+    TOPBAR_MT_editor_menus,
+    TOPBAR_MT_app,
+    TOPBAR_MT_app_about,
+    TOPBAR_MT_app_support,
+    TOPBAR_MT_file,
+    TOPBAR_MT_file_new,
+    TOPBAR_MT_file_recover,
+    TOPBAR_MT_file_defaults,
+    TOPBAR_MT_templates_more,
+    TOPBAR_MT_file_import,
+    TOPBAR_MT_file_export,
+    TOPBAR_MT_file_external_data,
+    TOPBAR_MT_file_previews,
+    TOPBAR_MT_edit,
+    TOPBAR_MT_render,
+    TOPBAR_MT_window,
+    TOPBAR_MT_help,
+    TOPBAR_PT_gpencil_layers,
+    TOPBAR_PT_gpencil_primitive,
+    TOPBAR_PT_gpencil_fill,
+    TOPBAR_PT_name,
 )
 
 if __name__ == "__main__":  # only for live edit.

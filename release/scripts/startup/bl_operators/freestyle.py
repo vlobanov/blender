@@ -36,9 +36,11 @@ class SCENE_OT_freestyle_fill_range_by_selection(bpy.types.Operator):
 
     type: EnumProperty(
         name="Type", description="Type of the modifier to work on",
-        items=(("COLOR", "Color", "Color modifier type"),
-               ("ALPHA", "Alpha", "Alpha modifier type"),
-               ("THICKNESS", "Thickness", "Thickness modifier type")),
+        items=(
+            ('COLOR', "Color", "Color modifier type"),
+            ('ALPHA', "Alpha", "Alpha modifier type"),
+            ('THICKNESS', "Thickness", "Thickness modifier type"),
+        ),
     )
     name: StringProperty(
         name="Name",
@@ -210,14 +212,14 @@ class SCENE_OT_freestyle_module_open(bpy.types.Operator):
         view_layer = context.view_layer
         return view_layer and view_layer.freestyle_settings.mode == 'SCRIPT'
 
-    def invoke(self, context, event):
+    def invoke(self, context, _event):
         self.freestyle_module = context.freestyle_module
         wm = context.window_manager
         wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-    def execute(self, context):
-        text = bpy.data.texts.load(self.filepath, self.make_internal)
+    def execute(self, _context):
+        text = bpy.data.texts.load(self.filepath, internal=self.make_internal)
         self.freestyle_module.script = text
         return {'FINISHED'}
 
