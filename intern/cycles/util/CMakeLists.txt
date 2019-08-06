@@ -116,7 +116,8 @@ set(SRC_HEADERS
   util_types_float3.h
   util_types_float3_impl.h
   util_types_float4.h
-  util_types_float4_impl.hutil_types_float8.h
+  util_types_float4_impl.h
+  util_types_float8.h
   util_types_float8_impl.h
   util_types_int2.h
   util_types_int2_impl.h
