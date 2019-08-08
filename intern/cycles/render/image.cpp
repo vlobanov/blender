@@ -255,7 +255,7 @@ bool ImageManager::get_image_metadata(const string& filename,
 #ifdef WITH_OPENVDB
 	if(string_endswith(filename, ".vdb")) {
 		if(!openvdb_has_grid(filename, grid_name)) {
-			VLOG(1) << "File '" << filename << "' does not have grid '" << grid_name << "'.";
+			std::cout << "File '" << filename << "' does not have grid '" << grid_name << "'." << std::endl;
 			return false;
 		}
 		int3 resolution = openvdb_get_resolution(filename);
@@ -599,27 +599,32 @@ bool ImageManager::file_load_image_generic(Image *img, unique_ptr<ImageInput> *i
 #ifdef WITH_OPENVDB
     if(string_endswith(img->filename, ".vdb")) {
 		  if(!openvdb_has_grid(img->filename, img->grid_name)) {
+		    std::cout << "openvdb has no grid " << img->grid_name << std::endl;
 			  return false;
 		  }
 	  }
+    else
 #endif
+    {
+      /* load image from file through OIIO */
+      *in = unique_ptr<ImageInput>(ImageInput::create(img->filename));
 
+      if (!*in) {
+        std::cout << "pointer NULL " << img->grid_name << std::endl;
+        return false;
+      }
 
-    /* load image from file through OIIO */
-    *in = unique_ptr<ImageInput>(ImageInput::create(img->filename));
+      ImageSpec spec = ImageSpec();
+      ImageSpec config = ImageSpec();
 
-    if (!*in)
-      return false;
+      if (!image_associate_alpha(img)) {
+        config.attribute("oiio:UnassociatedAlpha", 1);
+      }
 
-    ImageSpec spec = ImageSpec();
-    ImageSpec config = ImageSpec();
-
-    if (!image_associate_alpha(img)) {
-      config.attribute("oiio:UnassociatedAlpha", 1);
-    }
-
-    if (!(*in)->open(img->filename, spec, config)) {
-      return false;
+      if (!(*in)->open(img->filename, spec, config)) {
+        std::cout << "could not open " << img->grid_name << std::endl;
+        return false;
+      }
     }
   }
   else {
@@ -627,12 +632,14 @@ bool ImageManager::file_load_image_generic(Image *img, unique_ptr<ImageInput> *i
     if (!builtin_image_info_cb || !builtin_image_pixels_cb)
       return false;
   }
+  std::cout << "went on " << img->grid_name << std::endl;
 
   /* we only handle certain number of components */
   if (!(img->metadata.channels >= 1 && img->metadata.channels <= 4)) {
     if (*in) {
       (*in)->close();
     }
+    std::cout << "channels " << img->grid_name << std::endl;
     return false;
   }
 
@@ -732,19 +739,23 @@ void ImageManager::file_load_extern_vdb(Device *device,
                                         Image *img,
                                         ImageDataType type)
 {
-	VLOG(1) << "Loading external VDB " << img->filename
-	        << ", Grid: " << img->grid_name;
+	std::cout << "Loading external VDB " << img->filename << ", Grid: " << img->grid_name << std::endl;
 
 	device_vector<DeviceType> *tex_img =
 	        new device_vector<DeviceType>(device,
 	                                      img->mem_name.c_str(),
 	                                      MEM_TEXTURE);
+	std::cout << "created device vector " << img->grid_name << std::endl;
 
 	/* Retrieve metadata. */
+//	unique_ptr<ImageInput> in = NULL;
 	if(!file_load_image_generic(img, NULL)) {
+	  std::cout << "could not read image " << img->grid_name << std::endl;
 		file_load_failed<DeviceType>(img, type, tex_img);
+	  std::cout << "set up file load failed " << img->grid_name << std::endl;
 		return;
 	}
+	std::cout << "Md 1" << std::endl;
 
 	const bool use_pad = (device->info.type == DEVICE_CUDA);
 	int sparse_size = -1;
@@ -752,6 +763,7 @@ void ImageManager::file_load_extern_vdb(Device *device,
 	openvdb_load_preprocess(img->filename, img->grid_name, img->isovalue,
 	                        use_pad, &sparse_offsets, sparse_size);
 
+	std::cout << "Md 2" << std::endl;
 	/* Allocate space for image. */
 	float *pixels;
 	{
@@ -773,6 +785,7 @@ void ImageManager::file_load_extern_vdb(Device *device,
 			                                img->metadata.depth);
 		}
 	}
+	std::cout << "Md 3" << std::endl;
 
 	if(!pixels) {
 		/* Could be that we've run out of memory. */
@@ -780,10 +793,12 @@ void ImageManager::file_load_extern_vdb(Device *device,
 		return;
 	}
 
+	std::cout << "Md 4" << std::endl;
 	/* Load image. */
 	openvdb_load_image(img->filename, img->grid_name, &sparse_offsets,
 	                   sparse_size, use_pad, pixels);
 
+	std::cout << "Md 5" << std::endl;
 	/* Allocate space for sparse_index if it exists. */
 	if(sparse_size > -1) {
 		if(!allocate_grid_info(device, (device_memory*)tex_img, &sparse_offsets)) {

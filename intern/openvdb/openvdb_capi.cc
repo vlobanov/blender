@@ -297,6 +297,7 @@ static bool OpenVDBReader_get_bbox(struct OpenVDBReader *reader,
 	for(int type = 0; type < VDB_SMOKE_GRID_NUM; type++) {
 		const char *grid_name = vdb_grid_name(type);
 
+		std::cout << "OVDB: checking grid " << grid_name << ":" << reader->hasGrid(grid_name) << std::endl;
 		if(reader->hasGrid(grid_name)) {
 			has_smoke_grid = true;
 			bbox->expand(reader->getGridBounds(grid_name));

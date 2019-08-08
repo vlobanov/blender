@@ -873,8 +873,8 @@ static ShaderNode *add_node(Scene *scene,
       point_density->add_image();
       b_point_density_node.cache_point_density(b_depsgraph);
       scene->image_manager->tag_reload_image(point_density->filename.string(),
-                                             point_density->builtin_data,
                                              string(),
+                                             point_density->builtin_data,
                                              point_density->interpolation,
                                              EXTENSION_CLIP,
                                              IMAGE_ALPHA_AUTO,

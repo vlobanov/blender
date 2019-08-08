@@ -676,6 +676,12 @@ extern bool BLI_memory_is_zero(const void *arr, const size_t arr_size);
 
 #define STRPREFIX(a, b) (strncmp((a), (b), strlen(b)) == 0)
 
+#define VECCOPY(v1, v2) {                                                     \
+		*(v1) =   *(v2);                                                      \
+		*(v1 + 1) = *(v2 + 1);                                                \
+		*(v1 + 2) = *(v2 + 2);                                                \
+} (void)0
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

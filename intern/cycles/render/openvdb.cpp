@@ -518,9 +518,11 @@ bool openvdb_has_grid(const string& filepath, const string& grid_name)
 	}
 	openvdb::io::File *vdb_file = load_file(filepath);
 	if(!vdb_file) {
+    std::cout << "openvdb null vdb_file " << grid_name << std::endl;
 		return false;
 	}
 	bool has_grid = vdb_file->hasGrid(grid_name);
+  std::cout << "openvdb has grid: " << has_grid << std::endl;
 	cleanup_file(vdb_file);
 	return has_grid;
 }
@@ -556,7 +558,7 @@ void openvdb_load_preprocess(const string& filepath,
 
 	switch(grid_type) {
 		case OPENVDB_GRID_BOOL:
-			return image_load_preprocess<BoolGrid, unsigned long int>(
+			return image_load_preprocess<BoolGrid, unsigned long long>(
 			            grid, resolution, min_bound, 1, threshold, use_pad,
 			            sparse_indexes, sparse_size);
 		case OPENVDB_GRID_DOUBLE:
@@ -620,7 +622,7 @@ void openvdb_load_image(const string& filepath,
 	if(make_sparse && use_pad) {
 		switch(grid_type) {
 			case OPENVDB_GRID_BOOL:
-				return image_load_sparse_pad<BoolGrid, unsigned long int>(
+				return image_load_sparse_pad<BoolGrid, unsigned long long>(
 				            grid, sparse_indexes, resolution, min_bound, 1,
 				            sparse_size, image);
 			case OPENVDB_GRID_DOUBLE:
@@ -658,7 +660,7 @@ void openvdb_load_image(const string& filepath,
 	else if(make_sparse) {
 		switch(grid_type) {
 			case OPENVDB_GRID_BOOL:
-				return image_load_sparse<BoolGrid, unsigned long int>(
+				return image_load_sparse<BoolGrid, unsigned long long>(
 							grid, sparse_indexes, resolution, min_bound, 1, image);
 			case OPENVDB_GRID_DOUBLE:
 				return image_load_sparse<DoubleGrid, double>(
@@ -688,7 +690,7 @@ void openvdb_load_image(const string& filepath,
 	else {
 		switch(grid_type) {
 			case OPENVDB_GRID_BOOL:
-				return image_load_dense<BoolGrid, unsigned long int>(
+				return image_load_dense<BoolGrid, unsigned long long>(
 				            grid, resolution, min_bound, 1, image);
 			case OPENVDB_GRID_DOUBLE:
 				return image_load_dense<DoubleGrid, double>(

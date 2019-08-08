@@ -255,12 +255,12 @@ typedef struct SmokeDomainSettings {
   char interp_method;
 
   char multi_import;
+  char _pad3[3];
 	char volume_filepath[1024];
 	int sample_level;
-  char _pad4[2]; // VL: not sure
 
   float clipping;
-  char _pad3[4];
+  char _pad4[4];
 } SmokeDomainSettings;
 
 /* inflow / outflow */

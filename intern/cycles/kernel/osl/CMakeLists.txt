@@ -29,6 +29,8 @@ set(LIB
   cycles_render
 )
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")
+
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})
 

@@ -1332,7 +1332,7 @@ static int ptcache_smoke_openvdb_extern_read(struct OpenVDBReader *reader, void 
 
 	SmokeDomainSettings *sds = smd->domain;
 
-	int fluid_fields = smoke_get_data_flags(sds);
+	int fluid_fields = BKE_smoke_get_data_flags(sds);
 	int cache_fields = 0;
 	bool reallocate = false;
 	int res[3], raw_res[3], res_min[3];
@@ -1382,7 +1382,7 @@ static int ptcache_smoke_openvdb_extern_read(struct OpenVDBReader *reader, void 
 		sds->active_fields = cache_fields;
 		sds->maxres = MAX3(sds->base_res[0], sds->base_res[1], sds->base_res[2]);
 		sds->dx = 1.0f / sds->maxres;
-		smoke_reallocate_fluid(sds, sds->dx, sds->res, 1);
+		BKE_smoke_reallocate_fluid(sds, sds->dx, sds->res, 1);
 		sds->total_cells = sds->res[0] * sds->res[1] * sds->res[2];
 	}
 

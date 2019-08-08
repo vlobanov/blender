@@ -300,8 +300,6 @@ static void create_mesh_volume_attribute(Mesh *mesh,
 	VoxelAttribute *volume_data = attr->data_voxel();
 
 
-//	IMAGE_ALPHA_AUTO,
-//   u_colorspace_raw,
 
 	volume_data->manager = image_manager;
 	volume_data->slot = image_manager->add_image(
@@ -312,9 +310,10 @@ static void create_mesh_volume_attribute(Mesh *mesh,
 			frame,
 			INTERPOLATION_LINEAR,
 			EXTENSION_CLIP,
+      IMAGE_ALPHA_AUTO,
+      u_colorspace_raw,
 			true,
-			true,
-	        mesh->volume_isovalue,
+      mesh->volume_isovalue,
 			metadata);
 }
 
@@ -347,16 +346,21 @@ static void create_mesh_volume_attributes(Scene *scene,
 
 	mesh->volume_isovalue = b_domain.clipping();
 
-	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_DENSITY))
-		create_mesh_volume_attribute(mesh, scene->image_manager, ATTR_STD_VOLUME_DENSITY, filename, builtin_data, frame);
+	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_DENSITY)) {
+	  std::cout<<"needs density"<<std::endl;
+    create_mesh_volume_attribute(mesh, scene->image_manager, ATTR_STD_VOLUME_DENSITY, filename, builtin_data, frame);
+  }
 	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_COLOR))
 		create_mesh_volume_attribute(mesh, scene->image_manager, ATTR_STD_VOLUME_COLOR, filename, builtin_data, frame);
 	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_FLAME))
 		create_mesh_volume_attribute(mesh, scene->image_manager, ATTR_STD_VOLUME_FLAME, filename, builtin_data, frame);
 	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_HEAT))
 		create_mesh_volume_attribute(mesh, scene->image_manager, ATTR_STD_VOLUME_HEAT, filename, builtin_data, frame);
-	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_TEMPERATURE))
-		create_mesh_volume_attribute(mesh, scene->image_manager, ATTR_STD_VOLUME_TEMPERATURE, filename, builtin_data, frame);
+	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_TEMPERATURE)) {
+    std::cout<<"needs temperature"<<std::endl;
+    create_mesh_volume_attribute(mesh, scene->image_manager, ATTR_STD_VOLUME_TEMPERATURE, filename, builtin_data,
+                                 frame);
+  }
 	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_VELOCITY) || mesh->use_volume_motion_blur)
 		create_mesh_volume_attribute(mesh, scene->image_manager, ATTR_STD_VOLUME_VELOCITY, filename, builtin_data, frame);
 }

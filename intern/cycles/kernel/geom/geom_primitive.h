@@ -42,7 +42,7 @@ ccl_device_inline float primitive_attribute_float(
       *dx = 0.0f;
     if (dy)
       *dy = 0.0f;
-    return volume_attribute_float(kg, sd, desc);
+    return volume_attribute_float(kg, sd, desc, dx, dy);
   }
 #endif
   else {
@@ -83,7 +83,7 @@ ccl_device_inline float primitive_volume_attribute_float(KernelGlobals *kg,
                                                          const AttributeDescriptor desc)
 {
   if (sd->object != OBJECT_NONE && desc.element == ATTR_ELEMENT_VOXEL) {
-    return volume_attribute_float(kg, sd, desc);
+    return volume_attribute_float(kg, sd, desc, NULL, NULL);
   }
   else {
     return 0.0f;
@@ -150,7 +150,7 @@ ccl_device_inline float3 primitive_attribute_float3(KernelGlobals *kg,
       *dx = make_float3(0.0f, 0.0f, 0.0f);
     if (dy)
       *dy = make_float3(0.0f, 0.0f, 0.0f);
-    return volume_attribute_float3(kg, sd, desc);
+    return volume_attribute_float3(kg, sd, desc, dx, dy);
   }
 #endif
   else {
@@ -220,7 +220,7 @@ ccl_device_inline float3 primitive_volume_attribute_float3(KernelGlobals *kg,
                                                            const AttributeDescriptor desc)
 {
   if (sd->object != OBJECT_NONE && desc.element == ATTR_ELEMENT_VOXEL) {
-    return volume_attribute_float3(kg, sd, desc);
+    return volume_attribute_float3(kg, sd, desc, NULL, NULL);
   }
   else {
     return make_float3(0.0f, 0.0f, 0.0f);
