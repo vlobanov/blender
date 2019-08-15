@@ -84,6 +84,38 @@ template<typename T> struct TextureInterpolator {
     return read(data[y * width + x]);
   }
 
+const inline int compute_index_here(const int *offsets,
+                               const int x, const int y, const int z,
+                               const int width, const int height, const int depth)
+{
+	/* Get coordinates of voxel's tile in tiled image space and coordinates of
+	 * voxel in tile space. */
+	int tix = x >> TILE_INDEX_SHIFT, itix = x & TILE_INDEX_MASK,
+	    tiy = y >> TILE_INDEX_SHIFT, itiy = y & TILE_INDEX_MASK,
+	    tiz = z >> TILE_INDEX_SHIFT, itiz = z & TILE_INDEX_MASK;
+	/* Get flat index of voxel's tile. */
+	int tile = compute_index(tix, tiy, tiz,
+	                         get_tile_res(width),
+	                         get_tile_res(height),
+	                         get_tile_res(depth));
+	if(tile < 0) {
+		return -1;
+	}
+	/* Get flat index (in image space) of the first voxel of the target tile. */
+	int tile_start = offsets[tile];
+	if (tile_start < 0) {
+		return -1;
+	}
+	/* If the tile is the last tile in a direction and the end is truncated, we
+	 * have to recalulate itiN with the truncated length. */
+	int remainder_w = width & TILE_INDEX_MASK, remainder_h = height & TILE_INDEX_MASK;
+	int itiw = (x >= width - remainder_w) ? remainder_w : TILE_SIZE;
+	int itih = (y >= height - remainder_h) ? remainder_h : TILE_SIZE;
+	/* Get flat index of voxel in tile space. */
+	int in_tile_index = compute_index(itix, itiy, itiz, itiw, itih);
+	return tile_start + in_tile_index;
+}
+
 	/* Sparse grid voxel access. */
 	static ccl_always_inline float4 read_data(const T *data,
 	                                          const SparseTextureInfo s_info,
@@ -98,10 +130,15 @@ template<typename T> struct TextureInterpolator {
 		if(tile_start < 0) {
 			return make_float4(0.0f);
 		}
-		return read(data[tile_start + (x & TILE_INDEX_MASK)
-		        + ((x > s_info.div_w) ? s_info.remain_w : TILE_SIZE)
-		        * ((y & TILE_INDEX_MASK) + (z & TILE_INDEX_MASK)
-		           * ((y > s_info.div_h) ? s_info.remain_h : TILE_SIZE))]);
+    int index = tile_start + (x & TILE_INDEX_MASK) +
+                ((x >= s_info.div_w) ? s_info.remain_w : TILE_SIZE) *
+                    ((y & TILE_INDEX_MASK) +
+                     (z & TILE_INDEX_MASK) * ((y >= s_info.div_h) ? s_info.remain_h : TILE_SIZE));
+    if (index > s_info.data_size) {
+      printf("OVERHIDD");
+			return make_float4(0.0f);
+    }
+		return read(data[index]);
 	}
 
 	static ccl_always_inline float4 read_data(const T *data,

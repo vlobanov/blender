@@ -192,7 +192,7 @@ void VolumeMeshBuilder::add_node(int x, int y, int z)
 
   assert((index_x >= 0) && (index_y >= 0) && (index_z >= 0));
 
-	const size_t index = compute_index(index_x, index_y, index_z, res);
+  const size_t index = compute_index(index_x, index_y, index_z, res);
 
   /* We already have a node here. */
   if (grid[index] == 1) {
@@ -236,13 +236,13 @@ void VolumeMeshBuilder::generate_vertices_and_quads(vector<ccl::int3> &vertices_
 {
   unordered_map<size_t, int> used_verts;
 
-	for(int z = 0; z < res.z; ++z) {
-		for(int y = 0; y < res.y; ++y) {
-			for(int x = 0; x < res.x; ++x) {
-				size_t voxel_index = compute_index(x, y, z, res);
-				if(grid[voxel_index] == 0) {
-					continue;
-				}
+  for (int z = 0; z < res.z; ++z) {
+    for (int y = 0; y < res.y; ++y) {
+      for (int x = 0; x < res.x; ++x) {
+        size_t voxel_index = compute_index(x, y, z, res);
+        if (grid[voxel_index] == 0) {
+          continue;
+        }
 
         /* Compute min and max coords of the node in index space. */
         int3 min = make_int3((x - pad_offset.x) * CUBE_SIZE,
@@ -267,38 +267,38 @@ void VolumeMeshBuilder::generate_vertices_and_quads(vector<ccl::int3> &vertices_
          * an inactive node.
          */
 
-				voxel_index = compute_index(x - 1, y, z, res);
-				if(voxel_index == -1 || grid[voxel_index] == 0) {
-					create_quad(corners, vertices_is, quads, res, used_verts, QUAD_X_MIN);
-				}
+        voxel_index = compute_index(x - 1, y, z, res);
+        if (voxel_index == -1 || grid[voxel_index] == 0) {
+          create_quad(corners, vertices_is, quads, res, used_verts, QUAD_X_MIN);
+        }
 
-				voxel_index = compute_index(x + 1, y, z, res);
-				if(voxel_index == -1 || grid[voxel_index] == 0) {
-					create_quad(corners, vertices_is, quads, res, used_verts, QUAD_X_MAX);
-				}
+        voxel_index = compute_index(x + 1, y, z, res);
+        if (voxel_index == -1 || grid[voxel_index] == 0) {
+          create_quad(corners, vertices_is, quads, res, used_verts, QUAD_X_MAX);
+        }
 
-				voxel_index = compute_index(x, y - 1, z, res);
-				if(voxel_index == -1 || grid[voxel_index] == 0) {
-					create_quad(corners, vertices_is, quads, res, used_verts, QUAD_Y_MIN);
-				}
+        voxel_index = compute_index(x, y - 1, z, res);
+        if (voxel_index == -1 || grid[voxel_index] == 0) {
+          create_quad(corners, vertices_is, quads, res, used_verts, QUAD_Y_MIN);
+        }
 
-				voxel_index = compute_index(x, y + 1, z, res);
-				if(voxel_index == -1 || grid[voxel_index] == 0) {
-					create_quad(corners, vertices_is, quads, res, used_verts, QUAD_Y_MAX);
-				}
+        voxel_index = compute_index(x, y + 1, z, res);
+        if (voxel_index == -1 || grid[voxel_index] == 0) {
+          create_quad(corners, vertices_is, quads, res, used_verts, QUAD_Y_MAX);
+        }
 
-				voxel_index = compute_index(x, y, z - 1, res);
-				if(voxel_index == -1 || grid[voxel_index] == 0) {
-					create_quad(corners, vertices_is, quads, res, used_verts, QUAD_Z_MIN);
-				}
+        voxel_index = compute_index(x, y, z - 1, res);
+        if (voxel_index == -1 || grid[voxel_index] == 0) {
+          create_quad(corners, vertices_is, quads, res, used_verts, QUAD_Z_MIN);
+        }
 
-				voxel_index = compute_index(x, y, z + 1, res);
-				if(voxel_index == -1 || grid[voxel_index] == 0) {
-					create_quad(corners, vertices_is, quads, res, used_verts, QUAD_Z_MAX);
-				}
-			}
-		}
-	}
+        voxel_index = compute_index(x, y, z + 1, res);
+        if (voxel_index == -1 || grid[voxel_index] == 0) {
+          create_quad(corners, vertices_is, quads, res, used_verts, QUAD_Z_MAX);
+        }
+      }
+    }
+  }
 }
 
 void VolumeMeshBuilder::convert_object_space(const vector<int3> &vertices,
@@ -343,9 +343,11 @@ void VolumeMeshBuilder::convert_quads_to_tris(const vector<QuadData> &quads,
 struct VoxelAttributeGrid {
   float *data;
   int *offsets;
-	int channels;
-	int data_width;
-	ImageGridType grid_type;
+  int channels;
+  int data_width;
+  int data_size;
+  const char *name;
+  ImageGridType grid_type;
 };
 
 void MeshManager::create_volume_mesh(Scene *scene, Mesh *mesh, Progress &progress)
@@ -358,7 +360,7 @@ void MeshManager::create_volume_mesh(Scene *scene, Mesh *mesh, Progress &progres
   /* Compute volume parameters. */
   VolumeParams volume_params;
   volume_params.resolution = make_int3(0, 0, 0);
-	int grid_mem = -1;
+  int grid_mem = -1;
 
   foreach (Attribute &attr, mesh->attributes.attributes) {
     if (attr.element != ATTR_ELEMENT_VOXEL) {
@@ -368,38 +370,38 @@ void MeshManager::create_volume_mesh(Scene *scene, Mesh *mesh, Progress &progres
     VoxelAttribute *voxel = attr.data_voxel();
     device_memory *image_memory = scene->image_manager->image_memory(voxel->slot);
     int3 resolution = make_int3(
-        image_memory->dense_width,
-		                            image_memory->dense_height, image_memory->dense_depth);
+        image_memory->dense_width, image_memory->dense_height, image_memory->dense_depth);
 
-		if(volume_params.resolution == make_int3(0, 0, 0)) {
-			/* First volume grid. */
-			volume_params.resolution = resolution;
-			grid_mem = image_memory->memory_size();
-		}
-		else if(volume_params.resolution != resolution) {
-			VLOG(1) << "Can't create volume mesh, all voxel grid resolutions must be equal\n";
-			return;
-		}
+    if (volume_params.resolution == make_int3(0, 0, 0)) {
+      /* First volume grid. */
+      volume_params.resolution = resolution;
+      grid_mem = image_memory->memory_size();
+    }
+    else if (volume_params.resolution != resolution) {
+      VLOG(1) << "Can't create volume mesh, all voxel grid resolutions must be equal\n";
+      return;
+    }
 
-		VoxelAttributeGrid voxel_grid;
+    VoxelAttributeGrid voxel_grid;
 
-		voxel_grid.data = static_cast<float*>(image_memory->host_pointer);
-		voxel_grid.channels = image_memory->data_elements;
-		voxel_grid.data_width = image_memory->data_width;
-		voxel_grid.grid_type = image_memory->grid_type;
+    voxel_grid.data = static_cast<float *>(image_memory->host_pointer);
+    voxel_grid.channels = image_memory->data_elements;
+    voxel_grid.data_width = image_memory->data_width;
+    voxel_grid.grid_type = image_memory->grid_type;
+    voxel_grid.data_size = image_memory->data_size;
+    voxel_grid.name = attr.name.c_str();
 
-		if(image_memory->grid_type == IMAGE_GRID_TYPE_SPARSE ||
-		   image_memory->grid_type == IMAGE_GRID_TYPE_SPARSE_PAD)
-		{
-			device_memory *sparse_mem = (device_memory*)image_memory->grid_info;
-			voxel_grid.offsets = static_cast<int*>(sparse_mem->host_pointer);
-		}
-		else {
-			voxel_grid.offsets = NULL;
-		}
+    if (image_memory->grid_type == IMAGE_GRID_TYPE_SPARSE ||
+        image_memory->grid_type == IMAGE_GRID_TYPE_SPARSE_PAD) {
+      device_memory *sparse_mem = (device_memory *)image_memory->grid_info;
+      voxel_grid.offsets = static_cast<int *>(sparse_mem->host_pointer);
+    }
+    else {
+      voxel_grid.offsets = NULL;
+    }
 
-		voxel_grids.push_back(voxel_grid);
-	}
+    voxel_grids.push_back(voxel_grid);
+  }
 
   if (voxel_grids.empty()) {
     return;
@@ -451,44 +453,55 @@ void MeshManager::create_volume_mesh(Scene *scene, Mesh *mesh, Progress &progres
   VolumeMeshBuilder builder(&volume_params);
   const float isovalue = mesh->volume_isovalue;
 
-	for(size_t i = 0; i < voxel_grids.size(); ++i) {
-		const VoxelAttributeGrid &voxel_grid = voxel_grids[i];
+  for (size_t i = 0; i < voxel_grids.size(); ++i) {
+    const VoxelAttributeGrid &voxel_grid = voxel_grids[i];
 
-		for(int z = 0; z < resolution.z; ++z) {
-			for(int y = 0; y < resolution.y; ++y) {
-				for(int x = 0; x < resolution.x; ++x) {
-					int voxel_index = -1;
-					switch(voxel_grid.grid_type) {
-						case IMAGE_GRID_TYPE_SPARSE:
-							voxel_index = compute_index(voxel_grid.offsets,
-							                            x, y, z, resolution.x,
-							                            resolution.y, resolution.z);
-							break;
-						case IMAGE_GRID_TYPE_SPARSE_PAD:
-							voxel_index = compute_index_pad(voxel_grid.offsets,
-							                                x, y, z, resolution.x,
-							                                resolution.y, resolution.z,
-							                                voxel_grid.data_width);
-							break;
-						case IMAGE_GRID_TYPE_OPENVDB:
-						case IMAGE_GRID_TYPE_DEFAULT:
-						default:
-							voxel_index = compute_index(x, y, z, resolution);
-					}
-					voxel_index *= voxel_grid.channels;
 
-					if(voxel_index >= 0) {
-						for(int c = 0; c < voxel_grid.channels; c++) {
-							if(voxel_grid.data[voxel_index + c] >= isovalue) {
-								builder.add_node_with_padding(x, y, z);
-								break;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
+    for (int z = 0; z < resolution.z; ++z) {
+      for (int y = 0; y < resolution.y; ++y) {
+        for (int x = 0; x < resolution.x; ++x) {
+          int voxel_index = -1;
+          switch (voxel_grid.grid_type) {
+            case IMAGE_GRID_TYPE_SPARSE:
+              voxel_index = compute_index(
+                  voxel_grid.offsets, x, y, z, resolution.x, resolution.y, resolution.z);
+              break;
+            case IMAGE_GRID_TYPE_SPARSE_PAD:
+              voxel_index = compute_index_pad(voxel_grid.offsets,
+                                              x,
+                                              y,
+                                              z,
+                                              resolution.x,
+                                              resolution.y,
+                                              resolution.z,
+                                              voxel_grid.data_width);
+              break;
+            case IMAGE_GRID_TYPE_OPENVDB:
+            case IMAGE_GRID_TYPE_DEFAULT:
+            default:
+              voxel_index = compute_index(x, y, z, resolution);
+          }
+          voxel_index *= voxel_grid.channels;
+          if (voxel_index >= voxel_grid.data_size + 87) {
+            printf("%s: %i - %i; stopping\n", voxel_grid.name, voxel_index, voxel_grid.data_size);
+            voxel_index = compute_index(
+                voxel_grid.offsets, x, y, z, resolution.x, resolution.y, resolution.z);
+          }
+          else {
+            if (voxel_index >= 0) {
+              for (int c = 0; c < voxel_grid.channels; c++) {
+                // printf("%s: %i - %i\n", voxel_grid.name, voxel_index, voxel_grid.data_size);
+                if (voxel_grid.data[voxel_index + c] >= isovalue) {
+                  builder.add_node_with_padding(x, y, z);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 
   /* Create mesh. */
   vector<float3> vertices;
@@ -522,7 +535,7 @@ void MeshManager::create_volume_mesh(Scene *scene, Mesh *mesh, Progress &progres
                  (1024.0 * 1024.0)
           << "Mb.";
 
-	VLOG(1) << "Memory usage volume grid: " << grid_mem / (1024.0 * 1024.0) << "Mb.";
+  VLOG(1) << "Memory usage volume grid: " << grid_mem / (1024.0 * 1024.0) << "Mb.";
 }
 
 CCL_NAMESPACE_END
