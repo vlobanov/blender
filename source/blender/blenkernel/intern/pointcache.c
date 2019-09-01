@@ -1397,14 +1397,20 @@ static int ptcache_smoke_openvdb_extern_read(struct OpenVDBReader *reader, void 
 			OpenVDB_import_grid_fl(reader, vdb_grid_name(VDB_SMOKE_DENSITY),
 			                       dens, raw_res, res_min, sds->sample_level);
 		}
-		if(OpenVDBReader_has_smoke_grid(reader, VDB_SMOKE_HEAT)) {
-			OpenVDB_import_grid_fl(reader, vdb_grid_name(VDB_SMOKE_HEAT),
-			                       heat, raw_res, res_min, sds->sample_level);
-		}
-	    else if(OpenVDBReader_has_smoke_grid(reader, VDB_SMOKE_TEMPERATURE)) {
-			OpenVDB_import_grid_fl(reader, vdb_grid_name(VDB_SMOKE_TEMPERATURE),
-			                       heat, raw_res, res_min, sds->sample_level);
-		}
+    if (heat) {
+      if (OpenVDBReader_has_smoke_grid(reader, VDB_SMOKE_HEAT)) {
+        OpenVDB_import_grid_fl(
+            reader, vdb_grid_name(VDB_SMOKE_HEAT), heat, raw_res, res_min, sds->sample_level);
+      }
+      else if (OpenVDBReader_has_smoke_grid(reader, VDB_SMOKE_TEMPERATURE)) {
+        OpenVDB_import_grid_fl(reader,
+                               vdb_grid_name(VDB_SMOKE_TEMPERATURE),
+                               heat,
+                               raw_res,
+                               res_min,
+                               sds->sample_level);
+      }
+    }
 		if (cache_fields & SM_ACTIVE_FIRE) {
 			OpenVDB_import_grid_fl(reader, vdb_grid_name(VDB_SMOKE_FLAME),
 			                       flame, raw_res, res_min, sds->sample_level);
