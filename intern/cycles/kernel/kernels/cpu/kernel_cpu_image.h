@@ -98,10 +98,15 @@ template<typename T> struct TextureInterpolator {
 		if(tile_start < 0) {
 			return make_float4(0.0f);
 		}
-		return read(data[tile_start + (x & TILE_INDEX_MASK)
-		        + ((x > s_info.div_w) ? s_info.remain_w : TILE_SIZE)
-		        * ((y & TILE_INDEX_MASK) + (z & TILE_INDEX_MASK)
-		           * ((y > s_info.div_h) ? s_info.remain_h : TILE_SIZE))]);
+    int index = tile_start + (x & TILE_INDEX_MASK) +
+                ((x >= s_info.div_w) ? s_info.remain_w : TILE_SIZE) *
+                    ((y & TILE_INDEX_MASK) +
+                     (z & TILE_INDEX_MASK) * ((y >= s_info.div_h) ? s_info.remain_h : TILE_SIZE));
+    if (index > s_info.data_size) {
+      printf("DANGER index > s_info.data_size");
+			return make_float4(0.0f);
+    }
+		return read(data[index]);
 	}
 
 	static ccl_always_inline float4 read_data(const T *data,
