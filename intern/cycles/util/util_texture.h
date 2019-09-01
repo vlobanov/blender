@@ -108,6 +108,7 @@ typedef struct SparseTextureInfo {
 	uint remain_w, remain_h;
 	/* Dim - (Dim % TILE_SIZE) */
 	uint div_w, div_h;
+  uint data_size, align1, align2, align3;
 } SparseTextureInfo;
 
 typedef struct TextureInfo {
